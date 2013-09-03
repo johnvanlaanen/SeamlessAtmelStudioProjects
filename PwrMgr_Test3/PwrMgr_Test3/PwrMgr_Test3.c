@@ -14,6 +14,7 @@
 #include <avr/sleep.h>
 #include <stdint.h>
 
+#include "AtomDefs.h"
 #include "PwrMgr_Test3.h"
 #include "moduleIO.h"
 

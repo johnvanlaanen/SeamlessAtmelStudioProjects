@@ -107,6 +107,9 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AtomDefs.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="moduleIO.c">
       <SubType>compile</SubType>
     </Compile>

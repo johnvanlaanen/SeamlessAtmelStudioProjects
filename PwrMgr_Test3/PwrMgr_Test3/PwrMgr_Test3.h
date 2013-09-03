@@ -9,28 +9,6 @@
 #ifndef PWRMGR_TEST1_H_
 #define PWRMGR_TEST1_H_
 
-#define		kPORTA		0x0800
-#define		kPORTB		0x1000
-
-#define		INPUT 0x0
-#define		OUTPUT 0x1
-#define		INPUT_PULLUP 0x2
-
-#define HIGH 0x1
-#define LOW  0x0
-
-#define true 0x1
-#define false 0x0
-
-#define		kBIT0		0x01
-#define		kBIT1		0x02
-#define		kBIT2		0x04
-#define		kBIT3		0x08
-#define		kBIT4		0x10
-#define		kBIT5		0x20
-#define		kBIT6		0x40
-#define		kBIT7		0x80
-
 #define  kPIN_BATTERY_V_SENSE          (kPORTA | kBIT0 )		// ADC0
 #define  kPIN_USB_DMINUS_SENSE         (kPORTA | kBIT1 )		// ADC1
 #define  kPIN_USB_DPLUS_SENSE          (kPORTA | kBIT2 )		// ADC2

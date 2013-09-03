@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Atmel Studio Solution File, Format Version 11.00
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "PowerManager", "PowerManager\PowerManager.cproj", "{82E36D5E-7B09-4268-B36A-AD1C80420628}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|AVR = Debug|AVR
+		Release|AVR = Release|AVR
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{82E36D5E-7B09-4268-B36A-AD1C80420628}.Debug|AVR.ActiveCfg = Debug|AVR
+		{82E36D5E-7B09-4268-B36A-AD1C80420628}.Debug|AVR.Build.0 = Debug|AVR
+		{82E36D5E-7B09-4268-B36A-AD1C80420628}.Release|AVR.ActiveCfg = Release|AVR
+		{82E36D5E-7B09-4268-B36A-AD1C80420628}.Release|AVR.Build.0 = Release|AVR
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
