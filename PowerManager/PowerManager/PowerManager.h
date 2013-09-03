@@ -38,7 +38,7 @@ const uint8_t  TCCR0_COUNT_VALUE = ((8000000 / 1024 / kINTERRUPTS_PER_SEC)-1);	/
 #define kBATTERY_FULL_VOLTS_x10 36	// The battery voltage above which to indicate a full charge, times 10
 const int16_t kADCVAL_USB_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Min ADC value for high current sense
 const int16_t kADCVAL_USB_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
-const int16_t kADCVAL_BATTERY_FULL = (kBATTERY_FULL_VOLTS_x10 * 1024) / (2*kSUPPLY_VOLTAGE_x10); // ADC value for full charge
+const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
 
 const uint8_t kButtonDebounceCount = (10);
 const uint8_t kButtonLongPressCount = (kINTERRUPTS_PER_SEC * 5);     // 5 seconds at 50 per second = 250
