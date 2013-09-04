@@ -23,7 +23,7 @@ typedef enum {
 	kButtonJustPressed,
 	kButtonPressed,
 	kButtonPressed_Long,
-	kButtonPressed_Ignore,
+	//kButtonPressed_Ignore,
 } tPowerButtonStates;
 
 typedef enum {
@@ -122,7 +122,7 @@ void UpdateButtonState(void)
 				break;
 				
 			case kButtonPressed_Long:
-				SystemState.button_state = kButtonPressed_Ignore;
+				//SystemState.button_state = kButtonPressed_Ignore;
 				break;
 			default:
 				// should never get here
@@ -132,10 +132,11 @@ void UpdateButtonState(void)
 	}
 }
 
-// update the state of the sleep request signal state
+// update the sleep request signal state, detecting new assertions
 void UpdateSleepReqState(void)
 {
 	int req_state = digitalRead(kPIN_REQ_SLEEP_MODE);
+	
 	switch(SystemState.sleep_req_state) {
 
 		case kSleepReq_NoRequest:
@@ -144,7 +145,7 @@ void UpdateSleepReqState(void)
 			break;
 
 		case kSleepReq_NewRequest:
-			SystemState.sleep_req_state = kSleepReq_NewRequest;
+			SystemState.sleep_req_state = kSleepReq_Handshake;
 			break;
 
 		case kSleepReq_Handshake:
@@ -438,7 +439,6 @@ void UpdateLEDs(void)
 		blink_change = 0;
 	}
 	
-
 	// Only update the i/o ports when something changes
 	if( (blink_change) || (SystemState.new_power_state)) {
 
@@ -456,9 +456,9 @@ void UpdateLEDs(void)
 				green_off = 1;
 				red_off = 0;
 				if(SystemState.battery_charge_state == kBattery_FullCharge)
-					blinking = 1;
-				else
 					blinking = 0;
+				else
+					blinking = 1;
 				break;
 
 			case kPowerSleepCharging:
