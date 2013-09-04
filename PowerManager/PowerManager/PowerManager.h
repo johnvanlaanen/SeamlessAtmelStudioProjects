@@ -2,20 +2,31 @@
  * PowerManager.h
  *
  * Created: 9/2/2013 12:29:48 PM
- *  Author: John
+ *  Author: John VanLaanen for Seamless Toy Company
  */ 
-
 
 #ifndef POWERMANAGER_H_
 #define POWERMANAGER_H_
 
+
+// configuration switches
+#define TURN_POWER_OFF_ASSERT_LOW		// comment out if assertion level is high
+
+
+// I/O Port assignemts
 #define  kPIN_BATTERY_V_SENSE          (kPORTA | kBIT0 )		// ADC0
 #define  kPIN_USB_DMINUS_SENSE         (kPORTA | kBIT1 )		// ADC1
 #define  kPIN_USB_DPLUS_SENSE          (kPORTA | kBIT2 )		// ADC2
 #define  kPIN_ENABLE_BUS_POWER         (kPORTA | kBIT3 )
 #define  kPIN_REQ_SLEEP_MODE           (kPORTA | kBIT4 )
 #define  kPIN_USB_POWER_SENSE_L        (kPORTA | kBIT5 )
+
+#ifdef TURN_POWER_OFF_ASSERT_LOW
 #define  kPIN_TURN_POWER_OFF_L         (kPORTA | kBIT6 )
+#else
+#define  kPIN_TURN_POWER_OFF           (kPORTA | kBIT6 )
+#endif
+
 #define  kPIN_POWER_BUTTON_PRESSED     (kPORTA | kBIT7 )
 
 #define  kPIN_CHARGER_SEL_HIGH_CURRENT  (kPORTB | kBIT0 )
@@ -26,7 +37,7 @@
 #define  kPIN_GREEN_POWER_LED_ON_L      (kPORTB | kBIT5)
 #define  kPIN_RED_POWER_LED_ON_L        (kPORTB | kBIT6 )
 
-
+// 
 #define CPU_CLOCK_FREQ 8000000					// 8MHz clock
 #define kINTERRUPTS_PER_SEC 50					// 50Hz interrupt rate
 const uint8_t  TCCR0_PRESCALE_SELECT =7;			// timer0 prescaler clock divide by 1024

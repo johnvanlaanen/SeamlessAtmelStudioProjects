@@ -87,8 +87,14 @@ void TurnPowerOff(void) {
 	digitalWrite(kPIN_ENABLE_BUS_POWER, LOW);
 	digitalWrite(kPIN_CHARGER_ENABLE, LOW);
 	digitalWrite(kPIN_ENABLE_POWER_GRP2, LOW);
-	while(1)
+	
+	while(1) {
+#ifdef TURN_POWER_OFF_ASSERT_LOW
 		digitalWrite(kPIN_TURN_POWER_OFF_L, LOW);
+#else
+		digitalWrite(kPIN_TURN_POWER_OFF, HIGH);
+#endif
+	}
 }
 
 
@@ -503,7 +509,12 @@ ISR(TIMER0_COMPA_vect)
 int main(void)
 {
 	// set the output pin states before enabling any of them
+#ifdef TURN_POWER_OFF_ASSERT_LOW
 	digitalWrite(kPIN_TURN_POWER_OFF_L,		HIGH);
+#else
+	digitalWrite(kPIN_TURN_POWER_OFF,		LOW);
+#endif
+
 	digitalWrite(kPIN_ENABLE_BUS_POWER,		LOW);
 	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
 	digitalWrite(kPIN_ENABLE_POWER_GRP2,	HIGH);
@@ -516,7 +527,12 @@ int main(void)
 	pinMode(kPIN_ENABLE_BUS_POWER,			OUTPUT);
 	pinMode(kPIN_REQ_SLEEP_MODE,			INPUT);
 	pinMode(kPIN_USB_POWER_SENSE_L,			INPUT);
+#ifdef TURN_POWER_OFF_ASSERT_LOW
 	pinMode(kPIN_TURN_POWER_OFF_L,			OUTPUT);
+#else
+	pinMode(kPIN_TURN_POWER_OFF,			OUTPUT);
+#endif
+
 	pinMode(kPIN_POWER_BUTTON_PRESSED,		INPUT);
 
 	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	OUTPUT);
