@@ -38,10 +38,10 @@
 #define  kPIN_RED_POWER_LED_ON_L        (kPORTB | kBIT6 )
 
 // 
-#define CPU_CLOCK_FREQ 8000000					// 8MHz clock
+#define kCPU_CLOCK_FREQ 8000000					// 8MHz clock
 #define kINTERRUPTS_PER_SEC 50					// 50Hz interrupt rate
-const uint8_t  TCCR0_PRESCALE_SELECT =7;			// timer0 prescaler clock divide by 1024
-const uint8_t  TCCR0_COUNT_VALUE = ((8000000 / 1024 / kINTERRUPTS_PER_SEC)-1);	// produces a 50.08Hz counter period.
+const uint8_t  kTCCR0_PRESCALE_SELECT =7;		// timer0 prescaler clock divide by 1024
+const uint8_t  kTCCR0_COUNT_VALUE = ((kCPU_CLOCK_FREQ / 1024 / kINTERRUPTS_PER_SEC)-1);	// produces a 50.08Hz counter period.
 
 #define kSUPPLY_VOLTAGE_x10 28		// the supply voltage, times 10
 #define kUSB_DATA_V_MIN_x10 26		// The min USB data line voltage indicating a high current device, times 10
@@ -51,12 +51,20 @@ const int16_t kADCVAL_USB_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE
 const int16_t kADCVAL_USB_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
 const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
 
-const uint8_t kButtonDebounceCount = (10);
-const uint8_t kButtonLongPressCount = (kINTERRUPTS_PER_SEC * 5);     // 5 seconds at 50 per second = 250
-const uint8_t kUSBDebounceCount = (10);
+#define kButtonDebounceTime_mS 200
+const uint8_t kButtonDebounceCount = (kButtonDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
 
-const uint8_t kBatteryMeasureInterval = (kINTERRUPTS_PER_SEC * 1);     //measure the battery voltage once per second
-const uint8_t kLEDBlinkInterval = ( kINTERRUPTS_PER_SEC / 2);     // LED blink rate when charging
+#define kButtonLongPressTime_Sec 5
+const uint8_t kButtonLongPressCount = (kButtonLongPressTime_Sec * kINTERRUPTS_PER_SEC);     // 5 seconds at 50 per second = 250
+
+#define kUSBDebounceTime_uS 200
+const uint8_t kUSBDebounceCount = (kUSBDebounceTime_uS * kINTERRUPTS_PER_SEC / 1000);
+
+#define kBatteryMeasureInterval_Sec 1      //measure the battery voltage once per second
+const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_PER_SEC );
+
+#define kLEDBlinkInterval_mS 500	// toggle the LED twice per second when blinking
+const uint8_t kLEDBlinkCount = ( kLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
 
 

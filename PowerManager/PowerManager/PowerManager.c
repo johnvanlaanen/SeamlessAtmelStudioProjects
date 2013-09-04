@@ -253,7 +253,7 @@ void UpdateBatteryState(void)
 		case  kBatteryMeasureInProcess:
 			adcval = analogReadFinish();    // get the battery voltage measurement
 			SystemState.adc_in_use = 0;             // done using the ADC
-			SystemState.battery_measure_delay = kBatteryMeasureInterval;
+			SystemState.battery_measure_delay = kBatteryMeasureCount;
 			SystemState.battery_measure_state = kBatteryMeasureWaiting;
 			if(adcval >= kADCVAL_BATTERY_FULL)
 				SystemState.battery_charge_state = kBattery_FullCharge;
@@ -434,7 +434,7 @@ void UpdateLEDs(void)
 	// The blinking state free runs regardless of whether the LEDs are actually blinking or not
 	// Whether they actually get turned off due to blinking is determined further down
 	if( SystemState.led_blink_delay == 0) {
-		SystemState.led_blink_delay = kLEDBlinkInterval;
+		SystemState.led_blink_delay = kLEDBlinkCount;
 		blink_change = 1;
 		if(SystemState.led_blink_on)
 			SystemState.led_blink_on = 0;
@@ -554,10 +554,10 @@ int main(void)
 	// set up 8-bit timer 0 to generate an interrupt at a 50Hz rate
 	TCCR0A = (1<<WGM01);					// CTC mode - clear on compare
 	ASSR = 0;								// normal synchronous mode
-	OCR0A = TCCR0_COUNT_VALUE;				// sets the compare value for interrupt generation
+	OCR0A = kTCCR0_COUNT_VALUE;				// sets the compare value for interrupt generation
 	TCNT0 = 0;								// make sure the count starts at 0
 	GTCCR = (1<<PSR0);						// reset the prescaler
-	TCCR0B = TCCR0_PRESCALE_SELECT<<CS00;	// set timer prescaler divide by 1024. Clock = 8MHz/1024=7812.5Hz
+	TCCR0B = kTCCR0_PRESCALE_SELECT<<CS00;	// set timer prescaler divide by 1024. Clock = 8MHz/1024=7812.5Hz
 	TIMSK0 = (1<<OCIE0A);					// enable interrupt on compare
 
 	set_sleep_mode(SLEEP_MODE_IDLE);
