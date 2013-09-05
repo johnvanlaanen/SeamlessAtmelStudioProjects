@@ -44,14 +44,16 @@ const int16_t kADCVAL_USB_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE
 const int16_t kADCVAL_USB_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
 const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
 
-#define kButtonDebounceTime_mS 200
+#define kButtonDebounceTime_mS 20
 const uint8_t kButtonDebounceCount = (kButtonDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
 
 #define kButtonLongPressTime_Sec 5
 const uint8_t kButtonLongPressCount = (kButtonLongPressTime_Sec * kINTERRUPTS_PER_SEC);     // 5 seconds at 50 per second = 250
 
-#define kUSBDebounceTime_uS 200
-const uint8_t kUSBDebounceCount = (kUSBDebounceTime_uS * kINTERRUPTS_PER_SEC / 1000);
+#define kUSBDebounceTime_mS 200
+const uint8_t kUSBDebounceCount = (kUSBDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
+#define kUSBPowerupSettleTime_mS 200
+const uint8_t kUSBPowerupSettleCount = (kUSBPowerupSettleTime_mS * kINTERRUPTS_PER_SEC / 1000);
 
 #define kBatteryMeasureInterval_Sec 1      //measure the battery voltage once per second
 const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_PER_SEC );

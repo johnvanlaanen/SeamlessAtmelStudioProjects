@@ -19,7 +19,8 @@
 
 
 typedef enum {
-	kButtonNotPressed=0,
+	kButtonWaitNotPressed=0,
+	kButtonNotPressed,
 	kButtonPressed,
 	kButtonPressed_Long,
 	kButtonJustReleased,
@@ -54,7 +55,8 @@ typedef enum {
 
 
 typedef enum {
-	kUSB_Unplugged=0,
+	kUSB_PowerupSettle=0,
+	kUSB_Unplugged,
 	kUSB_JustUnplugged,
 	kUSB_Debounce,
 	kUSB_PluggedMeasureDPlus,
@@ -64,7 +66,7 @@ typedef enum {
 } tUSBStates;
 
 
-struct {
+volatile struct {
 	uint8_t               button_pressed_count;
 	uint8_t               led_blink_delay;
 	uint8_t				  led_blink_on;
@@ -78,8 +80,19 @@ struct {
 	tUSBStates            usb_state;
 	tBatteryChargeStates  battery_charge_state;
 	tBatteryMeasureStates battery_measure_state;
-} SystemState={0,0,0,0,0,0,0,0,0,0,0,0,0};
-
+} SystemState= {.button_pressed_count	= 0,
+				.led_blink_delay		= 0,
+				.led_blink_on			= 0,
+				.usb_debounce_count		= 0,
+				.battery_measure_delay	= 0,
+				.adc_in_use				= 0,
+				.new_power_state		= 1,
+				.power_state			= kJustPoweredUp,
+				.button_state			= kButtonWaitNotPressed,
+				.sleep_req_state		= kSleepReq_NoRequest,
+				.usb_state				= kUSB_PowerupSettle,
+				.battery_charge_state	= kBattery_NoBattery,
+				.battery_measure_state	= kBatteryMeasureWaiting };
 
 // Routine to turn off power. It's a dead-end call that will never return
 void TurnPowerOff(void) {
@@ -112,6 +125,13 @@ void UpdateButtonState(void)
 	}
 	
 	switch(SystemState.button_state) {
+		case kButtonWaitNotPressed:
+			// This state is only used only on powerup, and prevents a spurious ButtonJustReleased
+			// state if the button was pressed when powered up.
+			if(button_pressed==0)
+				SystemState.button_state = kButtonNotPressed;
+			break;
+			
 		case kButtonNotPressed:
 			if(SystemState.button_pressed_count >= kButtonDebounceCount)
 				SystemState.button_state = kButtonPressed;					
@@ -174,12 +194,20 @@ void UpdateUSBState(void)
 
 
 	switch(SystemState.usb_state) {
+		case kUSB_PowerupSettle:
+			if( SystemState.usb_debounce_count < 255 )
+				SystemState.usb_debounce_count += 1;
+			if(SystemState.usb_debounce_count >=kUSBPowerupSettleCount)
+				SystemState.usb_state = kUSB_Debounce;
+			break;
+			
 		case kUSB_Unplugged:
 			if(usb_power_sense_l == 0) {
 				SystemState.usb_state = kUSB_Debounce;
 				SystemState.usb_debounce_count = 0;
 			}
 			break;
+			
 		case kUSB_Debounce:
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_Unplugged;
@@ -310,21 +338,19 @@ void UpdatePowerMode(void)
 			if( SystemState.button_state == kButtonJustReleased) {
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.usb_state == kUSB_JustUnplugged) || (SystemState.usb_state == kUSB_Unplugged) ) {
+			} else if( (SystemState.usb_state == kUSB_JustUnplugged) || (SystemState.usb_state == kUSB_Unplugged) ) {
 				TurnPowerOff();
 			}
 			break;
 
 		case kPowerSleep:
 			// running on battery with the bus powered down but the rest of the system active.
-			if(SystemState.button_state == kButtonPressed_Long)
+			if(SystemState.button_state == kButtonPressed_Long) {
 				TurnPowerOff();
-			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
+			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
+			} else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
 				SystemState.power_state = kPowerSleepCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -334,12 +360,10 @@ void UpdatePowerMode(void)
 			// Running on battery with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonPressed_Long) {
 				TurnPowerOff();
-			}
-			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
+			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerSleep;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
+			} else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -350,13 +374,11 @@ void UpdatePowerMode(void)
 			if(SystemState.button_state == kButtonPressed_Long) {
 				SystemState.power_state = kPowerCharging;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
+			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				// transition to active mode
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+			} else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
 				// USB power removed - stay in sleep mode but stop charging
 				SystemState.power_state = kPowerSleep;
 				SystemState.new_power_state = 1;
@@ -368,12 +390,10 @@ void UpdatePowerMode(void)
 			if(SystemState.button_state == kButtonPressed_Long) {
 				SystemState.power_state = kPowerCharging;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
+			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerSleepCharging;
 				SystemState.new_power_state = 1;
-			}
-			else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+			} else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
 				// USB power removed - stay in active mode but stop charging
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
@@ -418,6 +438,11 @@ void UpdatePowerMode(void)
 				bus_on = LOW;
 				charger_on = HIGH;
 				break;
+				
+			case kJustPoweredUp:
+				grp2_on = LOW;
+				bus_on = LOW;
+				charger_on = LOW;
 
 			default:
 				// should never get here
@@ -460,22 +485,27 @@ void UpdateLEDs(void)
 	// Only update the i/o ports when something changes
 	if( (blink_change) || (SystemState.new_power_state)) {
 
-		// set the default colors. May get overridden further down
+		// set the default colors and no blinking. May get overridden further down
 		green_off = 0;
 		if(SystemState.battery_charge_state == kBattery_FullCharge)
 			red_off = 1;	// green
 		else
 			red_off = 0;	// Amber
-
+		blinking = 0;
+		
 		// determine that the LEDs are doing based on the current power state
 		switch(SystemState.power_state) {
+			case kJustPoweredUp:
+				// keep the LEDs off until the power stabalizes
+				green_off = 1;
+				red_off = 1;
+				break;
+				
 			case kPowerCharging:
 				// set the color to red
 				green_off = 1;
 				red_off = 0;
-				if(SystemState.battery_charge_state == kBattery_FullCharge)
-					blinking = 0;
-				else
+				if(SystemState.battery_charge_state == kBattery_LowCharge)
 					blinking = 1;
 				break;
 
@@ -485,10 +515,8 @@ void UpdateLEDs(void)
 				break;
 
 			default:
-				blinking = 0;
 				break;
 		}
-
 
 		if( blinking && (SystemState.led_blink_on==0) ) {
 			green_off = 1;
@@ -512,7 +540,7 @@ ISR(TIMER0_COMPA_vect)
 	static uint8_t startupCount=0;
 	
 	// Startup delay - for debug and maybe longer...
-	if(startupCount < 20) {
+	if(startupCount < 25) {
 		startupCount += 1;
 	} else {
 	
