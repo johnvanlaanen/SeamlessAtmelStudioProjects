@@ -8,24 +8,17 @@
 #ifndef POWERMANAGER_H_
 #define POWERMANAGER_H_
 
-
 // configuration switches
-#define TURN_POWER_OFF_ASSERT_LOW		// comment out if assertion level is high
+//#define TURN_POWER_OFF_ASSERT_LOW		// comment out if assertion level is high
 
-
-// I/O Port assignemts
+// I/O Port assignments
 #define  kPIN_BATTERY_V_SENSE          (kPORTA | kBIT0 )		// ADC0
 #define  kPIN_USB_DMINUS_SENSE         (kPORTA | kBIT1 )		// ADC1
 #define  kPIN_USB_DPLUS_SENSE          (kPORTA | kBIT2 )		// ADC2
 #define  kPIN_ENABLE_BUS_POWER         (kPORTA | kBIT3 )
 #define  kPIN_REQ_SLEEP_MODE           (kPORTA | kBIT4 )
 #define  kPIN_USB_POWER_SENSE_L        (kPORTA | kBIT5 )
-
-#ifdef TURN_POWER_OFF_ASSERT_LOW
-#define  kPIN_TURN_POWER_OFF_L         (kPORTA | kBIT6 )
-#else
 #define  kPIN_TURN_POWER_OFF           (kPORTA | kBIT6 )
-#endif
 
 #define  kPIN_POWER_BUTTON_PRESSED     (kPORTA | kBIT7 )
 
@@ -65,7 +58,5 @@ const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_
 
 #define kLEDBlinkInterval_mS 500	// toggle the LED twice per second when blinking
 const uint8_t kLEDBlinkCount = ( kLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
-
-
 
 #endif /* POWERMANAGER_H_ */

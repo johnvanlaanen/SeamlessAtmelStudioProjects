@@ -91,7 +91,7 @@ void TurnPowerOff(void) {
 	
 	while(1) {
 #ifdef TURN_POWER_OFF_ASSERT_LOW
-		digitalWrite(kPIN_TURN_POWER_OFF_L, LOW);
+		digitalWrite(kPIN_TURN_POWER_OFF, LOW);
 #else
 		digitalWrite(kPIN_TURN_POWER_OFF, HIGH);
 #endif
@@ -275,7 +275,7 @@ void UpdateBatteryState(void)
 			// should never get here
 			SystemState.battery_measure_delay = 0;
 			SystemState.battery_measure_state = kBatteryMeasureWaiting;
-			// not sure yet about SystemState.adc_in_use = 1. Could be set forever if it was set by this function and the state gets corrupted
+			SystemState.adc_in_use = 0; 
 	}
 }
 
@@ -320,7 +320,6 @@ void UpdatePowerMode(void)
 			// running on battery with the bus powered down but the rest of the system active.
 			if(SystemState.button_state == kButtonPressed_Long)
 				TurnPowerOff();
-			//else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.button_state == kButtonPressed) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
@@ -353,10 +352,12 @@ void UpdatePowerMode(void)
 				SystemState.new_power_state = 1;
 			}
 			else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
+				// transition to active mode
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
 			}
 			else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+				// USB power removed - stay in sleep mode but stop charging
 				SystemState.power_state = kPowerSleep;
 				SystemState.new_power_state = 1;
 			}
@@ -373,6 +374,7 @@ void UpdatePowerMode(void)
 				SystemState.new_power_state = 1;
 			}
 			else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+				// USB power removed - stay in active mode but stop charging
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
 			}
@@ -528,7 +530,7 @@ int main(void)
 {
 	// set the output pin states before enabling any of them
 #ifdef TURN_POWER_OFF_ASSERT_LOW
-	digitalWrite(kPIN_TURN_POWER_OFF_L,		HIGH);
+	digitalWrite(kPIN_TURN_POWER_OFF,		HIGH);
 #else
 	digitalWrite(kPIN_TURN_POWER_OFF,		LOW);
 #endif
@@ -545,11 +547,7 @@ int main(void)
 	pinMode(kPIN_ENABLE_BUS_POWER,			OUTPUT);
 	pinMode(kPIN_REQ_SLEEP_MODE,			INPUT);
 	pinMode(kPIN_USB_POWER_SENSE_L,			INPUT);
-#ifdef TURN_POWER_OFF_ASSERT_LOW
-	pinMode(kPIN_TURN_POWER_OFF_L,			OUTPUT);
-#else
 	pinMode(kPIN_TURN_POWER_OFF,			OUTPUT);
-#endif
 
 	pinMode(kPIN_POWER_BUTTON_PRESSED,		INPUT);
 

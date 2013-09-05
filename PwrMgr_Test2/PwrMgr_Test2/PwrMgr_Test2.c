@@ -39,7 +39,7 @@ int main(void)
 	pinMode(kPIN_RED_POWER_LED_ON_L,		OUTPUT);
 
 	digitalWrite(kPIN_TURN_POWER_OFF_L,		HIGH);
-	digitalWrite(kPIN_ENABLE_BUS_POWER,		LOW);
+	digitalWrite(kPIN_ENABLE_BUS_POWER,		HIGH);
 	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
 	digitalWrite(kPIN_ENABLE_POWER_GRP2,	HIGH);	
 	digitalWrite(kPIN_GREEN_POWER_LED_ON_L, HIGH);
