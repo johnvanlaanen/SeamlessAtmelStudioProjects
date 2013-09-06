@@ -59,6 +59,7 @@ typedef enum {
 	kUSB_Unplugged,
 	kUSB_JustUnplugged,
 	kUSB_Debounce,
+	kUSB_PluggedMeasureDelay,
 	kUSB_PluggedMeasureDPlus,
 	kUSB_PluggedMeasureDMinus,
 	kUSB_PluggedInLowCurrent,
@@ -74,6 +75,8 @@ volatile struct {
 	uint8_t               battery_measure_delay;
 	uint8_t               adc_in_use;
 	uint8_t				  new_power_state;
+	uint8_t				  usb_power_available;
+	uint8_t				  usb_high_power_available;
 	tModulePowerStates    power_state;
 	tPowerButtonStates    button_state;
 	tSleepRequestStates	  sleep_req_state;
@@ -87,6 +90,8 @@ volatile struct {
 				.battery_measure_delay	= 0,
 				.adc_in_use				= 0,
 				.new_power_state		= 1,
+				.usb_power_available	= 0,
+				.usb_high_power_available = 0,
 				.power_state			= kJustPoweredUp,
 				.button_state			= kButtonWaitNotPressed,
 				.sleep_req_state		= kSleepReq_NoRequest,
@@ -195,6 +200,8 @@ void UpdateUSBState(void)
 
 	switch(SystemState.usb_state) {
 		case kUSB_PowerupSettle:
+			SystemState.usb_power_available = 0;
+			SystemState.usb_high_power_available = 0;
 			if( SystemState.usb_debounce_count < 255 )
 				SystemState.usb_debounce_count += 1;
 			if(SystemState.usb_debounce_count >=kUSBPowerupSettleCount)
@@ -202,6 +209,8 @@ void UpdateUSBState(void)
 			break;
 			
 		case kUSB_Unplugged:
+			SystemState.usb_power_available = 0;
+			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l == 0) {
 				SystemState.usb_state = kUSB_Debounce;
 				SystemState.usb_debounce_count = 0;
@@ -209,21 +218,36 @@ void UpdateUSBState(void)
 			break;
 			
 		case kUSB_Debounce:
+			SystemState.usb_power_available = 0;
+			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_Unplugged;
 			} else {
 				if( SystemState.usb_debounce_count < 255 )
 					SystemState.usb_debounce_count += 1;
-				if( (SystemState.usb_debounce_count > kUSBDebounceCount) && (SystemState.adc_in_use==0) ) {
-					SystemState.usb_state = kUSB_PluggedMeasureDPlus;
-					// start an ADC measurement of the D+ voltage
-					analogReadStart(kPIN_USB_DPLUS_SENSE);
-					SystemState.adc_in_use = 1;
+				if(SystemState.usb_debounce_count > kUSBDebounceCount) {
+					SystemState.usb_debounce_count = 0;
+					SystemState.usb_state = kUSB_PluggedMeasureDelay;
 				}
 			}
 			break;
-				
+		
+		case kUSB_PluggedMeasureDelay:
+			SystemState.usb_power_available = 1;
+			SystemState.usb_high_power_available = 0;
+			if( SystemState.usb_debounce_count < 255 )
+				SystemState.usb_debounce_count += 1;
+			if( (SystemState.usb_debounce_count > kUSBDebounceCount) && (SystemState.adc_in_use==0) ) {
+				// start an ADC measurement of the D+ voltage once the delay expires
+				analogReadStart(kPIN_USB_DPLUS_SENSE);
+				SystemState.adc_in_use = 1;
+			}
+		
+			break;
+		
 		case kUSB_PluggedMeasureDPlus:
+			SystemState.usb_power_available = 1;
+			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_Unplugged;
 			} else {
@@ -243,6 +267,8 @@ void UpdateUSBState(void)
 			break;
 				
 		case kUSB_PluggedMeasureDMinus:
+			SystemState.usb_power_available = 1;
+			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_Unplugged;
 			} else {
@@ -256,12 +282,22 @@ void UpdateUSBState(void)
 			break;
 				
 		case kUSB_PluggedInLowCurrent:
+			SystemState.usb_power_available = 1;
+			SystemState.usb_high_power_available = 0;
+			if(usb_power_sense_l != 0)
+				SystemState.usb_state = kUSB_JustUnplugged;
+			break;
+
 		case kUSB_PluggedInHighCurrent:
+			SystemState.usb_power_available = 1;
+			SystemState.usb_high_power_available = 1;
 			if(usb_power_sense_l != 0)
 				SystemState.usb_state = kUSB_JustUnplugged;
 			break;
 		
 		case kUSB_JustUnplugged:
+			SystemState.usb_power_available = 0;
+			SystemState.usb_high_power_available = 0;
 			SystemState.usb_state = kUSB_Unplugged;
 			
 		default:
@@ -327,7 +363,7 @@ void UpdatePowerMode(void)
 			} else if(SystemState.usb_state == kUSB_JustUnplugged) {
 				// probably a USB connector bounce. Turn off
 				TurnPowerOff();
-			} else if( (SystemState.usb_state == kUSB_PluggedInLowCurrent) || (SystemState.usb_state == kUSB_PluggedInHighCurrent) ) {
+			} else if( SystemState.usb_power_available ) {
 				SystemState.power_state = kPowerCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -338,7 +374,7 @@ void UpdatePowerMode(void)
 			if( SystemState.button_state == kButtonJustReleased) {
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
-			} else if( (SystemState.usb_state == kUSB_JustUnplugged) || (SystemState.usb_state == kUSB_Unplugged) ) {
+			} else if( SystemState.usb_power_available==0 ) {
 				TurnPowerOff();
 			}
 			break;
@@ -350,7 +386,7 @@ void UpdatePowerMode(void)
 			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
-			} else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
+			} else if( SystemState.usb_power_available ) {
 				SystemState.power_state = kPowerSleepCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -363,7 +399,7 @@ void UpdatePowerMode(void)
 			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerSleep;
 				SystemState.new_power_state = 1;
-			} else if( (SystemState.usb_state == kUSB_PluggedInHighCurrent) || (SystemState.usb_state == kUSB_PluggedInLowCurrent) ) {
+			} else if( SystemState.usb_power_available ) {
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -378,7 +414,7 @@ void UpdatePowerMode(void)
 				// transition to active mode
 				SystemState.power_state = kPowerActiveCharging;
 				SystemState.new_power_state = 1;
-			} else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+			} else if( SystemState.usb_power_available==0 ) {
 				// USB power removed - stay in sleep mode but stop charging
 				SystemState.power_state = kPowerSleep;
 				SystemState.new_power_state = 1;
@@ -393,7 +429,7 @@ void UpdatePowerMode(void)
 			} else if( (SystemState.button_state == kButtonJustReleased) || (SystemState.sleep_req_state == kSleepReq_NewRequest) ) {
 				SystemState.power_state = kPowerSleepCharging;
 				SystemState.new_power_state = 1;
-			} else if( (SystemState.usb_state != kUSB_PluggedInHighCurrent) && (SystemState.usb_state != kUSB_PluggedInLowCurrent) ) {
+			} else if( SystemState.usb_power_available==0 ) {
 				// USB power removed - stay in active mode but stop charging
 				SystemState.power_state = kPowerActive;
 				SystemState.new_power_state = 1;
@@ -454,7 +490,7 @@ void UpdatePowerMode(void)
 			digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
 			digitalWrite(kPIN_ENABLE_BUS_POWER, bus_on);
 
-			if( (charger_on == HIGH) && (SystemState.usb_state == kUSB_PluggedInHighCurrent) )
+			if( (charger_on == HIGH) && (SystemState.usb_high_power_available) )
 				digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, HIGH);
 			else
 				digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
