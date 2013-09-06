@@ -54,6 +54,9 @@ const uint8_t kButtonLongPressCount = (kButtonLongPressTime_Sec * kINTERRUPTS_PE
 const uint8_t kUSBDebounceCount = (kUSBDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
 #define kUSBPowerupSettleTime_mS 200
 const uint8_t kUSBPowerupSettleCount = (kUSBPowerupSettleTime_mS * kINTERRUPTS_PER_SEC / 1000);
+#define kUSB_MeasureDelay_Sec 1
+const uint8_t kUSBMeasureDelayCount = (kUSB_MeasureDelay_Sec * kINTERRUPTS_PER_SEC);
+
 
 #define kBatteryMeasureInterval_Sec 1      //measure the battery voltage once per second
 const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_PER_SEC );
