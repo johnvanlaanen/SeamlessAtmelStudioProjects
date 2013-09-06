@@ -12,6 +12,12 @@
 #include "moduleIO.h"
 #include "MegaDummy1.h"
 
+void delay(void)
+{
+	for(uint16_t count=0; count<10000; count++) {};
+}
+
+
 int main(void)
 {
 	
@@ -60,6 +66,24 @@ int main(void)
 	
     while(1)
     {
-        //TODO:: Please write your application code 
-    }
+       digitalWrite(kPIN_IODATA1, HIGH);
+       digitalWrite(kPIN_IODATA2, HIGH);
+       digitalWrite(kPIN_IODATA3, HIGH);
+       digitalWrite(kPIN_IODATA4, HIGH);
+       digitalWrite(kPIN_IODATA5, HIGH);
+       digitalWrite(kPIN_IODATA6, HIGH);
+       digitalWrite(kPIN_IODATA7, HIGH);
+       digitalWrite(kPIN_IODATA8, HIGH);
+	   
+	   delay();
+       digitalWrite(kPIN_IODATA1, LOW);
+       digitalWrite(kPIN_IODATA2, LOW);
+       digitalWrite(kPIN_IODATA3, LOW);
+       digitalWrite(kPIN_IODATA4, LOW);
+       digitalWrite(kPIN_IODATA5, LOW);
+       digitalWrite(kPIN_IODATA6, LOW);
+       digitalWrite(kPIN_IODATA7, LOW);
+       digitalWrite(kPIN_IODATA8, LOW);
+	   delay();
+   }
 }
