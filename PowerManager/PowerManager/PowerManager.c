@@ -237,7 +237,9 @@ void UpdateUSBState(void)
 			SystemState.usb_high_power_available = 0;
 			if( SystemState.usb_debounce_count < 255 )
 				SystemState.usb_debounce_count += 1;
-			if( (SystemState.usb_debounce_count > kUSBDebounceCount) && (SystemState.adc_in_use==0) ) {
+			if(usb_power_sense_l != 0) {
+				SystemState.usb_state = kUSB_JustUnplugged;
+			} else if( (SystemState.usb_debounce_count > kUSBDebounceCount) && (SystemState.adc_in_use==0) ) {
 				// start an ADC measurement of the D+ voltage once the delay expires
 				analogReadStart(kPIN_USB_DPLUS_SENSE);
 				SystemState.adc_in_use = 1;
@@ -249,7 +251,7 @@ void UpdateUSBState(void)
 			SystemState.usb_power_available = 1;
 			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
-				SystemState.usb_state = kUSB_Unplugged;
+				SystemState.usb_state = kUSB_JustUnplugged;
 			} else {
 				adcval = analogReadFinish();    // get the D+ voltage measurement
 				if( (adcval >= kADCVAL_USB_MIN) && (adcval <= kADCVAL_USB_MAX) ) {
@@ -270,7 +272,7 @@ void UpdateUSBState(void)
 			SystemState.usb_power_available = 1;
 			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
-				SystemState.usb_state = kUSB_Unplugged;
+				SystemState.usb_state = kUSB_JustUnplugged;
 			} else {
 				adcval = analogReadFinish();    // get the D- voltage measurement
 				SystemState.adc_in_use = 0;
@@ -302,7 +304,7 @@ void UpdateUSBState(void)
 			
 		default:
 			// should never get here
-			SystemState.usb_state = kUSB_Unplugged;
+			SystemState.usb_state = kUSB_JustUnplugged;
 	}
 }
 
