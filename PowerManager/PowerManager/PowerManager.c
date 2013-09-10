@@ -62,8 +62,7 @@ typedef enum {
 	kUSB_PluggedMeasureDelay,
 	kUSB_PluggedMeasureDPlus,
 	kUSB_PluggedMeasureDMinus,
-	kUSB_PluggedInLowCurrent,
-	kUSB_PluggedInHighCurrent,
+	kUSB_PluggedIn,
 } tUSBStates;
 
 
@@ -222,8 +221,6 @@ void UpdateUSBState(void)
 			break;
 			
 		case kUSB_Debounce:
-			SystemState.usb_power_available = 0;
-			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_Unplugged;
 			} else {
@@ -238,7 +235,6 @@ void UpdateUSBState(void)
 		
 		case kUSB_PluggedMeasureDelay:
 			SystemState.usb_power_available = 1;
-			SystemState.usb_high_power_available = 0;
 			if( SystemState.usb_debounce_count < 255 )
 				SystemState.usb_debounce_count += 1;
 			if(usb_power_sense_l != 0) {
@@ -247,13 +243,10 @@ void UpdateUSBState(void)
 				// start an ADC measurement of the D+ voltage once the delay expires
 				analogReadStart(kPIN_USB_DPLUS_SENSE);
 				SystemState.adc_in_use = 1;
-			}
-		
+			}	
 			break;
 		
 		case kUSB_PluggedMeasureDPlus:
-			SystemState.usb_power_available = 1;
-			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_JustUnplugged;
 			} else {
@@ -262,44 +255,32 @@ void UpdateUSBState(void)
 					// the D+ voltage looks good, so check the D- voltage
 					analogReadStart(kPIN_USB_DMINUS_SENSE);
 					SystemState.usb_state = kUSB_PluggedMeasureDMinus;
-				}
-				else {
+				} else {
 					// the d+ voltage didn't look good for a high-current charger, so set the USB state
 					// for low current charging
-					SystemState.usb_state = kUSB_PluggedInLowCurrent;
+					SystemState.usb_state = kUSB_PluggedIn;
 					SystemState.adc_in_use = 0;
 				}
 			}
 			break;
 				
 		case kUSB_PluggedMeasureDMinus:
-			SystemState.usb_power_available = 1;
-			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSB_JustUnplugged;
 			} else {
 				adcval = analogReadFinish();    // get the D- voltage measurement
 				SystemState.adc_in_use = 0;
+					SystemState.usb_state = kUSB_PluggedIn;
 				if( (adcval >= kADCVAL_USB_MIN) && (adcval <= kADCVAL_USB_MAX) )
-					SystemState.usb_state = kUSB_PluggedInHighCurrent;
-				else
-					SystemState.usb_state = kUSB_PluggedInLowCurrent;
+					SystemState.usb_high_power_available = 1;
 			}
 			break;
 				
-		case kUSB_PluggedInLowCurrent:
-			SystemState.usb_power_available = 1;
-			SystemState.usb_high_power_available = 0;
+		case kUSB_PluggedIn:
 			if(usb_power_sense_l != 0)
 				SystemState.usb_state = kUSB_JustUnplugged;
 			break;
 
-		case kUSB_PluggedInHighCurrent:
-			SystemState.usb_power_available = 1;
-			SystemState.usb_high_power_available = 1;
-			if(usb_power_sense_l != 0)
-				SystemState.usb_state = kUSB_JustUnplugged;
-			break;
 		
 		case kUSB_JustUnplugged:
 			SystemState.usb_power_available = 0;
