@@ -120,7 +120,11 @@ void TurnPowerOff(void) {
 // Update the button state based on it's current state and whether the button is currently pressed or not
 void UpdateButtonState(void)
 {
+#ifdef BUTTON_PRESS_ASSERT_LOW
+	int button_pressed = !digitalRead(kPIN_POWER_BUTTON_PRESSED);
+#else
 	int button_pressed = digitalRead(kPIN_POWER_BUTTON_PRESSED);
+#endif
 
 	if( button_pressed ) {
 		if(SystemState.button_pressed_count < 255)

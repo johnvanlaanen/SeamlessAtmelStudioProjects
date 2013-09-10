@@ -10,6 +10,7 @@
 
 // configuration switches
 //#define TURN_POWER_OFF_ASSERT_LOW		// comment out if assertion level is high
+#define BUTTON_PRESS_ASSERT_LOW			// comment out if the button press signal assertion is high
 
 // I/O Port assignments
 #define  kPIN_BATTERY_V_SENSE          (kPORTA | kBIT0 )		// ADC0
