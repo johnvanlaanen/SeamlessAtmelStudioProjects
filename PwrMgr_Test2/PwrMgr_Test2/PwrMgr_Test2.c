@@ -27,7 +27,7 @@ int main(void)
 	pinMode(kPIN_ENABLE_BUS_POWER,			OUTPUT);
 	pinMode(kPIN_REQ_SLEEP_MODE,			INPUT);
 	pinMode(kPIN_USB_POWER_SENSE_L,			INPUT);
-	pinMode(kPIN_TURN_POWER_OFF_L,			OUTPUT);
+	pinMode(kPIN_TURN_POWER_OFF,			OUTPUT);
 	pinMode(kPIN_POWER_BUTTON_PRESSED,		INPUT);
 
 	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	INPUT);
@@ -38,7 +38,7 @@ int main(void)
 	pinMode(kPIN_GREEN_POWER_LED_ON_L,		OUTPUT);
 	pinMode(kPIN_RED_POWER_LED_ON_L,		OUTPUT);
 
-	digitalWrite(kPIN_TURN_POWER_OFF_L,		HIGH);
+	digitalWrite(kPIN_TURN_POWER_OFF,		LOW);
 	digitalWrite(kPIN_ENABLE_BUS_POWER,		HIGH);
 	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
 	digitalWrite(kPIN_ENABLE_POWER_GRP2,	HIGH);	

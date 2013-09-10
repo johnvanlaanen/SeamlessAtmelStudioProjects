@@ -37,7 +37,7 @@
 #define  kPIN_ENABLE_BUS_POWER         (kPORTA | kBIT3 )
 #define  kPIN_REQ_SLEEP_MODE           (kPORTA | kBIT4 )
 #define  kPIN_USB_POWER_SENSE_L        (kPORTA | kBIT5 )
-#define  kPIN_TURN_POWER_OFF_L         (kPORTA | kBIT6 )
+#define  kPIN_TURN_POWER_OFF           (kPORTA | kBIT6 )
 #define  kPIN_POWER_BUTTON_PRESSED     (kPORTA | kBIT7 )
 
 #define  kPIN_CHARGER_SEL_HIGH_CURRENT  (kPORTB | kBIT0 )
