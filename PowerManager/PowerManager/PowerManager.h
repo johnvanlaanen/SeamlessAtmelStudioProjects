@@ -11,13 +11,20 @@
 // configuration switches
 //#define TURN_POWER_OFF_ASSERT_LOW		// comment out if assertion level is high
 #define BUTTON_PRESS_ASSERT_LOW			// comment out if the button press signal assertion is high
+#define BLUETOOTH_MODULE				// comment out for rechargeable battery module code
 
 // I/O Port assignments
 #define  kPIN_BATTERY_V_SENSE          (kPORTA | kBIT0 )		// ADC0
 #define  kPIN_USB_DMINUS_SENSE         (kPORTA | kBIT1 )		// ADC1
 #define  kPIN_USB_DPLUS_SENSE          (kPORTA | kBIT2 )		// ADC2
 #define  kPIN_ENABLE_BUS_POWER         (kPORTA | kBIT3 )
+
+#ifdef BLUETOOTH_MODULE
 #define  kPIN_REQ_SLEEP_MODE           (kPORTA | kBIT4 )
+#else
+#define  kPIN_CHARGER_PG				(kPORTA | kBIT4 )
+#endif
+
 #define  kPIN_USB_POWER_SENSE_L        (kPORTA | kBIT5 )
 #define  kPIN_TURN_POWER_OFF           (kPORTA | kBIT6 )
 
