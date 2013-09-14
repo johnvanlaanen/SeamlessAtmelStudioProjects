@@ -45,12 +45,15 @@ const uint8_t  kTCCR0_PRESCALE_SELECT =7;		// timer0 prescaler clock divide by 1
 const uint8_t  kTCCR0_COUNT_VALUE = ((kCPU_CLOCK_FREQ / 1024 / kINTERRUPTS_PER_SEC)-1);	// produces a 50.08Hz counter period.
 
 #define kSUPPLY_VOLTAGE_x10 28		// the supply voltage, times 10
-#define kUSB_DATA_V_MIN_x10 26		// The min USB data line voltage indicating a high current device, times 10
-#define kUSB_DATA_V_MAX_x10 30		// The max USB data line voltage indicating a high current device, times 10
+
+#define kUSB_DATA_V_MIN_x10 25		// The min USB data line voltage indicating a high current device, times 10
+#define kUSB_DATA_V_MAX_x10 31		// The max USB data line voltage indicating a high current device, times 10
+const int16_t kADCVAL_USB_DATA_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Min ADC value for high current sense
+const int16_t kADCVAL_USB_DATA_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
+
 #define kBATTERY_FULL_VOLTS_x10 36	// The battery voltage above which to indicate a full charge, times 10
-const int16_t kADCVAL_USB_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Min ADC value for high current sense
-const int16_t kADCVAL_USB_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
 const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
+
 
 #define kButtonDebounceTime_mS 20
 const uint8_t kButtonDebounceCount = (kButtonDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);

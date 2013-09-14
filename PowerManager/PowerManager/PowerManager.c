@@ -202,7 +202,6 @@ void UpdateUSBState(void)
 		
 	int usb_power_sense_l = digitalRead(kPIN_USB_POWER_SENSE_L);
 
-
 	switch(SystemState.usb_state) {
 		case kUSBState_PowerupSettle:
 			// Provides some additional settling time on powerup, before moving to the debounce state
@@ -218,6 +217,7 @@ void UpdateUSBState(void)
 			// USB isn't plugged in. Leave to the debounce state if power detected.
 			SystemState.usb_power_available = 0;
 			SystemState.usb_high_power_available = 0;
+			SystemState.new_power_state = 1;
 			if(usb_power_sense_l == 0) {
 				SystemState.usb_state = kUSBState_Debounce;
 				SystemState.usb_debounce_count = 0;
@@ -232,35 +232,46 @@ void UpdateUSBState(void)
 				if( SystemState.usb_debounce_count < 255 )
 					SystemState.usb_debounce_count += 1;
 				if(SystemState.usb_debounce_count > kUSBDebounceCount) {
-					SystemState.usb_debounce_count = 0;
+					SystemState.usb_debounce_count = 0;	// reset count for the next state
 					SystemState.usb_state = kUSBState_PluggedMeasureDelay;
+					SystemState.usb_power_available = 1;
+					SystemState.new_power_state = 1;
 				}
 			}
 			break;
 		
 		case kUSBState_PluggedMeasureDelay:
 			// USB power is on. Wait a bit to measure the D+/- voltages to determine charging level
-			SystemState.usb_power_available = 1;
-			if( SystemState.usb_debounce_count < 255 )
-				SystemState.usb_debounce_count += 1;
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
-			} else if( (SystemState.usb_debounce_count > kUSBDebounceCount) && (SystemState.adc_in_use==0) ) {
-				// start an ADC measurement of the D+ voltage once the delay expires
-				analogReadStart(kPIN_USB_DPLUS_SENSE);
-				SystemState.adc_in_use = 1;
-				SystemState.usb_state = kUSBState_PluggedMeasureDPlus;
+				SystemState.usb_power_available = 0;
+				SystemState.usb_high_power_available = 0;
+				SystemState.new_power_state = 1;
+			} else {		
+				if( SystemState.usb_debounce_count < 255 )
+					SystemState.usb_debounce_count += 1;
+				
+				if( (SystemState.usb_debounce_count > kUSBMeasureDelayCount)  && (SystemState.adc_in_use==0) ) {
+					// start an ADC measurement of the D+ voltage once the delay expires
+					analogReadStart(kPIN_USB_DPLUS_SENSE);
+					SystemState.adc_in_use = 1;
+					SystemState.usb_state = kUSBState_PluggedMeasureDPlus;
+				}
 			}	
 			break;
 		
-		case kUSBState_PluggedMeasureDPlus:
+		case kUSBState_PluggedMeasureDPlus:	
 			// gets the ADC conversion result for the D+ line and decides what to do next.
 			if(usb_power_sense_l != 0) {
-				SystemState.adc_in_use = 0;
 				SystemState.usb_state = kUSBState_Unplugged;
+				SystemState.usb_power_available = 0;
+				SystemState.usb_high_power_available = 0;
+				SystemState.new_power_state = 1;
+				SystemState.adc_in_use = 0;
 			} else {
 				adcval = analogReadFinish();    // get the D+ voltage measurement
-				if( (adcval >= kADCVAL_USB_MIN) && (adcval <= kADCVAL_USB_MAX) ) {
+				
+				if( (adcval >= kADCVAL_USB_DATA_MIN) && (adcval <= kADCVAL_USB_DATA_MAX) ) {
 					// the D+ voltage looks good, so check the D- voltage, keeping ownership of the ADC
 					analogReadStart(kPIN_USB_DMINUS_SENSE);
 					SystemState.usb_state = kUSBState_PluggedMeasureDMinus;
@@ -275,28 +286,39 @@ void UpdateUSBState(void)
 				
 		case kUSBState_PluggedMeasureDMinus:
 			// gets the ADC conversion result for the D- line and decides what to do next.
-			SystemState.adc_in_use = 0;		// done using the ADC
+			SystemState.adc_in_use = 0;		// done using the ADC no matter what
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
+				SystemState.usb_power_available = 0;
+				SystemState.usb_high_power_available = 0;
+				SystemState.new_power_state = 1;
 			} else {
 				adcval = analogReadFinish();    // get the D- voltage measurement
 				SystemState.usb_state = kUSBState_PluggedIn;	// we go here no matter what at this point
-				if( (adcval >= kADCVAL_USB_MIN) && (adcval <= kADCVAL_USB_MAX) ) {
+				if( (adcval >= kADCVAL_USB_DATA_MIN) && (adcval <= kADCVAL_USB_DATA_MAX) ) {
 					// the adc voltage looks good. Set the high charge current flag
 					SystemState.usb_high_power_available = 1;
+					SystemState.new_power_state = 1;
 				}
 			}
 			break;
 				
 		case kUSBState_PluggedIn:
 			// stay in this state until USB unplugged
-			if(usb_power_sense_l != 0)
+			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
+				SystemState.usb_power_available = 0;
+				SystemState.usb_high_power_available = 0;
+				SystemState.new_power_state = 1;
+			}
 			break;
 
 		default:
 			// should never get here
 			SystemState.usb_state = kUSBState_Unplugged;
+			SystemState.usb_power_available = 0;
+			SystemState.usb_high_power_available = 0;
+			SystemState.new_power_state = 1;
 	}
 }
 
@@ -415,6 +437,7 @@ void UpdatePowerMode(void)
 			}
 			break;
 
+
 		case kPowerState_ActiveCharging:
 			// Running on USB, charging the battery, and with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
@@ -481,14 +504,15 @@ void UpdatePowerMode(void)
 				charger_on = LOW;
 		}
 
-			digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
-			digitalWrite(kPIN_ENABLE_BUS_POWER, bus_on);
+		digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
+		digitalWrite(kPIN_ENABLE_BUS_POWER, bus_on);
 
-			if( (charger_on == HIGH) && (SystemState.usb_high_power_available) )
-				digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, HIGH);
-			else
-				digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
-			digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
+		if( (charger_on == HIGH) && (SystemState.usb_high_power_available == 1) )
+			digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, HIGH);
+		else
+			digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
+				
+		digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
 	}
 }
 
@@ -573,7 +597,6 @@ ISR(TIMER0_COMPA_vect)
 	if(startupCount < 25) {
 		startupCount += 1;
 	} else {
-	
 		UpdateButtonState();
 		UpdateSleepReqState();
 		UpdateUSBState();
