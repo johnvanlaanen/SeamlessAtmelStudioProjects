@@ -54,6 +54,11 @@ const int16_t kADCVAL_USB_DATA_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VO
 #define kBATTERY_FULL_VOLTS_x10 36	// The battery voltage above which to indicate a full charge, times 10
 const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
 
+#define kPowerUpDelay_mS 100		// the amount of time to wait on powerup for things to settle
+const uint8_t kPowerUpDelayCount = (kPowerUpDelay_mS * kINTERRUPTS_PER_SEC / 1000);
+
+#define kPowerUpStateTimeout_Sec 2	// the max amount of time to wait in the powerup state to figure why power was turned on
+const uint8_t kPowerUpStateTimeoutCount = (kPowerUpStateTimeout_Sec * kINTERRUPTS_PER_SEC);
 
 #define kButtonDebounceTime_mS 20
 const uint8_t kButtonDebounceCount = (kButtonDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
@@ -63,8 +68,10 @@ const uint8_t kButtonLongPressCount = (kButtonLongPressTime_Sec * kINTERRUPTS_PE
 
 #define kUSBDebounceTime_mS 200
 const uint8_t kUSBDebounceCount = (kUSBDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
+
 #define kUSBPowerupSettleTime_mS 200
 const uint8_t kUSBPowerupSettleCount = (kUSBPowerupSettleTime_mS * kINTERRUPTS_PER_SEC / 1000);
+
 #define kUSB_MeasureDelay_Sec 1
 const uint8_t kUSBMeasureDelayCount = (kUSB_MeasureDelay_Sec * kINTERRUPTS_PER_SEC);
 

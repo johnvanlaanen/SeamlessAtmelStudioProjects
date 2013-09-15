@@ -19,8 +19,7 @@
 
 
 typedef enum {
-	kButtonState_WaitNotPressed=0,
-	kButtonState_NotPressed,
+	kButtonState_NotPressed=0,
 	kButtonState_Pressed,
 	kButtonState_PressedLong,
 	kButtonState_JustReleased,
@@ -42,9 +41,8 @@ typedef enum {
 } tModulePowerStates;
 
 typedef enum {
-	kBatteryState_NoBattery=0,
+	kBatteryState_FullCharge=0,
 	kBatteryState_LowCharge,
-	kBatteryState_FullCharge,
 } tBatteryChargeStates;
 
 typedef enum {
@@ -65,6 +63,7 @@ typedef enum {
 
 
 volatile struct {
+	uint8_t				  power_state_timeout_count;
 	uint8_t               button_pressed_count;
 	uint8_t               led_blink_delay;
 	uint8_t				  led_blink_on;
@@ -80,7 +79,8 @@ volatile struct {
 	tUSBStates            usb_state;
 	tBatteryChargeStates  battery_charge_state;
 	tBatteryMeasureStates battery_measure_state;
-} SystemState= {.button_pressed_count	= 0,
+} SystemState= {.power_state_timeout_count = 0,
+				.button_pressed_count	= 0,
 				.led_blink_delay		= 0,
 				.led_blink_on			= 0,
 				.usb_debounce_count		= 0,
@@ -90,10 +90,10 @@ volatile struct {
 				.usb_power_available	= 0,
 				.usb_high_power_available = 0,
 				.power_state			= kPowerState_JustPoweredUp,
-				.button_state			= kButtonState_WaitNotPressed,
+				.button_state			= kButtonState_NotPressed,
 				.sleep_req_state		= kSleepReqState_NoRequest,
 				.usb_state				= kUSBState_PowerupSettle,
-				.battery_charge_state	= kBatteryState_NoBattery,
+				.battery_charge_state	= kBatteryState_FullCharge,
 				.battery_measure_state	= kBatteryMeasureState_Waiting };
 
 // Routine to turn off power. It's a dead-end call that will never return
@@ -131,13 +131,6 @@ void UpdateButtonState(void)
 	}
 	
 	switch(SystemState.button_state) {
-		case kButtonState_WaitNotPressed:
-			// This state is only used only on powerup, and prevents a spurious ButtonJustReleased
-			// state if the button was pressed when powered up.
-			if(button_pressed==0)
-				SystemState.button_state = kButtonState_NotPressed;
-			break;
-			
 		case kButtonState_NotPressed:
 			if(SystemState.button_pressed_count >= kButtonDebounceCount)
 				SystemState.button_state = kButtonState_Pressed;					
@@ -371,7 +364,7 @@ void UpdatePowerMode(void)
 			// This is the first state visited after being powered on.
 			// Once exited, this state is never returned to.
 			// Power on can be caused by either USB being plugged in or the button being pressed
-			// This state persists until it's determined which happened
+			// This state persists until it's determined which happened or until a timeout is reached
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// the button was pressed and held for >5 seconds - just turn off
 				TurnPowerOff();
@@ -382,7 +375,11 @@ void UpdatePowerMode(void)
 			} else if( SystemState.usb_power_available ) {
 				SystemState.power_state = kPowerState_Charging;
 				SystemState.new_power_state = 1;
+			} else if(SystemState.power_state_timeout_count >= kPowerUpStateTimeoutCount) {
+				TurnPowerOff();
 			}
+			if(SystemState.power_state_timeout_count < 255)
+				SystemState.power_state_timeout_count += 1;
 			break;
 		
 		case kPowerState_Charging:
@@ -541,16 +538,16 @@ void UpdateLEDs(void)
 
 		// set the default colors and no blinking. May get overridden further down
 		green_off = 0;
-		if(SystemState.battery_charge_state == kBatteryState_FullCharge)
-			red_off = 1;	// green
-		else
+		if(SystemState.battery_charge_state == kBatteryState_LowCharge)
 			red_off = 0;	// Amber
+		else
+			red_off = 1;	// Green
 		blinking = 0;
 		
 		// determine that the LEDs are doing based on the current power state
 		switch(SystemState.power_state) {
 			case kPowerState_JustPoweredUp:
-				// keep the LEDs off until the power stabalizes
+				// keep the LEDs off until the power stabilizes
 				green_off = 1;
 				red_off = 1;
 				break;
@@ -593,8 +590,8 @@ ISR(TIMER0_COMPA_vect)
 {
 	static uint8_t startupCount=0;
 	
-	// Startup delay - for debug and maybe longer...
-	if(startupCount < 25) {
+	// Startup delay - lets voltages settle
+	if(startupCount < kPowerUpDelayCount) {
 		startupCount += 1;
 	} else {
 		UpdateButtonState();
