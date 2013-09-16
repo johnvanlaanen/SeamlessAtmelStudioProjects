@@ -198,19 +198,20 @@ void UpdateUSBState(void)
 	switch(SystemState.usb_state) {
 		case kUSBState_PowerupSettle:
 			// Provides some additional settling time on powerup, before moving to the debounce state
+			// Should never return to this state once it's left
 			SystemState.usb_power_available = 0;
 			SystemState.usb_high_power_available = 0;
 			if( SystemState.usb_debounce_count < 255 )
 				SystemState.usb_debounce_count += 1;
 			if(SystemState.usb_debounce_count >=kUSBPowerupSettleCount)
 				SystemState.usb_state = kUSBState_Debounce;
+				SystemState.new_power_state = 1;
 			break;
 			
 		case kUSBState_Unplugged:
 			// USB isn't plugged in. Leave to the debounce state if power detected.
 			SystemState.usb_power_available = 0;
 			SystemState.usb_high_power_available = 0;
-			SystemState.new_power_state = 1;
 			if(usb_power_sense_l == 0) {
 				SystemState.usb_state = kUSBState_Debounce;
 				SystemState.usb_debounce_count = 0;
@@ -373,9 +374,11 @@ void UpdatePowerMode(void)
 				SystemState.power_state = kPowerState_Active;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available ) {
+				// USB power available - go to charging state
 				SystemState.power_state = kPowerState_Charging;
 				SystemState.new_power_state = 1;
 			} else if(SystemState.power_state_timeout_count >= kPowerUpStateTimeoutCount) {
+				// nothing happened within timeout - turn off
 				TurnPowerOff();
 			}
 			if(SystemState.power_state_timeout_count < 255)
@@ -383,7 +386,7 @@ void UpdatePowerMode(void)
 			break;
 		
 		case kPowerState_Charging:
-			// plugged into USB and charging the battery
+			// plugged into USB and charging the battery. Remainder of the system powered off.
 			if( SystemState.button_state == kButtonState_JustReleased) {
 				SystemState.power_state = kPowerState_ActiveCharging;
 				SystemState.new_power_state = 1;
@@ -397,9 +400,11 @@ void UpdatePowerMode(void)
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				TurnPowerOff();
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
+				// the button was pressed or BT requested going active - go to active state
 				SystemState.power_state = kPowerState_Active;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available ) {
+				// USB was plugged in - keep the bus asleep but start charging the battery
 				SystemState.power_state = kPowerState_SleepCharging;
 				SystemState.new_power_state = 1;
 			}
@@ -408,26 +413,30 @@ void UpdatePowerMode(void)
 		case kPowerState_Active:
 			// Running on battery with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
+				// long button press turns the system off
 				TurnPowerOff();
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
+				// the button was pressed or BT requested a mode change - go to sleep state
 				SystemState.power_state = kPowerState_Sleep;
 				SystemState.new_power_state = 1;
-			} else if( SystemState.usb_power_available ) {
+			} else if( SystemState.usb_power_available == 1) {
+				// USB was plugged in - stay active but start charging the battery
 				SystemState.power_state = kPowerState_ActiveCharging;
 				SystemState.new_power_state = 1;
 			}
 			break;
 
 		case kPowerState_SleepCharging:
-			// Running on USB, charging the battery, and with the bus not powered and the rest of the system all active
+			// Running on USB, charging the battery, with the bus powered but the rest of the system all active
 			if(SystemState.button_state == kButtonState_PressedLong) {
+				// long button press turns the system off but keeps charging the battery
 				SystemState.power_state = kPowerState_Charging;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
-				// transition to active mode
+				// the button was pressed or BT requested a transition - switch to active and keep charging the battery
 				SystemState.power_state = kPowerState_ActiveCharging;
 				SystemState.new_power_state = 1;
-			} else if( SystemState.usb_power_available==0 ) {
+			} else if( SystemState.usb_power_available == 0 ) {
 				// USB power removed - stay in sleep mode but stop charging
 				SystemState.power_state = kPowerState_Sleep;
 				SystemState.new_power_state = 1;
@@ -438,12 +447,14 @@ void UpdatePowerMode(void)
 		case kPowerState_ActiveCharging:
 			// Running on USB, charging the battery, and with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
+				// long button press turns the system off but keeps charging the battery
 				SystemState.power_state = kPowerState_Charging;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
+				// the button was pressed or BT requested a transition - switch to sleep and keep charging the battery
 				SystemState.power_state = kPowerState_SleepCharging;
 				SystemState.new_power_state = 1;
-			} else if( SystemState.usb_power_available==0 ) {
+			} else if( SystemState.usb_power_available == 0 ) {
 				// USB power removed - stay in active mode but stop charging
 				SystemState.power_state = kPowerState_Active;
 				SystemState.new_power_state = 1;
