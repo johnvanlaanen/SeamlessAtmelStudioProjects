@@ -73,6 +73,8 @@ volatile struct {
 	uint8_t				  new_power_state;
 	uint8_t				  usb_power_available;
 	uint8_t				  usb_high_power_available;
+	uint8_t				  group2_on_count;
+	uint8_t				  group_2_power_good;
 	tModulePowerStates    power_state;
 	tPowerButtonStates    button_state;
 	tSleepRequestStates	  sleep_req_state;
@@ -89,6 +91,8 @@ volatile struct {
 				.new_power_state		= 1,
 				.usb_power_available	= 0,
 				.usb_high_power_available = 0,
+				.group2_on_count		= 0,
+				.group_2_power_good		= 0,
 				.power_state			= kPowerState_JustPoweredUp,
 				.button_state			= kButtonState_NotPressed,
 				.sleep_req_state		= kSleepReqState_NoRequest,
@@ -161,6 +165,7 @@ void UpdateButtonState(void)
 
 
 // update the BT sleep request signal state, detecting new assertions
+// But ignore the signal if group2 power is not good to prevent spurious requests.
 // function is a no-op for the rechargeable battery module
 void UpdateSleepReqState(void)
 {
@@ -170,7 +175,7 @@ void UpdateSleepReqState(void)
 	switch(SystemState.sleep_req_state) {
 
 		case kSleepReqState_NoRequest:
-			if(req_state == 1)
+			if( (SystemState.group_2_power_good==1) && ( req_state == 1) )
 				SystemState.sleep_req_state = kSleepReqState_NewRequest;
 			break;
 
@@ -179,7 +184,7 @@ void UpdateSleepReqState(void)
 			break;
 
 		case kSleepReqState_Handshake:
-			if(req_state == 0)
+			if(( req_state == 0) || (SystemState.group_2_power_good==0) )
 				SystemState.sleep_req_state = kSleepReqState_NoRequest;
 			break;
 	
@@ -466,51 +471,65 @@ void UpdatePowerMode(void)
 			TurnPowerOff();
 	}
 
+	// now set the outputs based on the state
+	switch( SystemState.power_state) {
+		case kPowerState_Active:
+			grp2_on = HIGH;
+			bus_on = HIGH;
+			charger_on = LOW;
+			break;
+
+		case kPowerState_ActiveCharging:
+			grp2_on = HIGH;
+			bus_on = HIGH;
+			charger_on = HIGH;
+			break;
+			
+		case kPowerState_Sleep:
+			grp2_on = HIGH;
+			bus_on = LOW;
+			charger_on = LOW;
+			break;
+
+		case kPowerState_SleepCharging:
+			grp2_on = HIGH;
+			bus_on = LOW;
+			charger_on = HIGH;
+			break;
+
+		case kPowerState_Charging:
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = HIGH;
+			break;
+				
+		case kPowerState_JustPoweredUp:
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = LOW;
+
+		default:
+			// should never get here
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = LOW;
+	}
+		
+	// keep track of how long Group2 power has been on in order to determine when it is good
+	if(grp2_on == HIGH) {
+		if(SystemState.group2_on_count < kGroup2PowerGoodDelayCount) {
+			SystemState.group2_on_count += 1;
+			SystemState.group_2_power_good = 0;
+		} else {
+			SystemState.group_2_power_good = 1;
+		}
+	} else {
+		SystemState.group2_on_count = 0;
+		SystemState.group_2_power_good = 0;
+	}
+			
 	if(SystemState.new_power_state) {
 		SystemState.new_power_state = 0;
-
-		switch( SystemState.power_state) {
-			case kPowerState_Active:
-				grp2_on = HIGH;
-				bus_on = HIGH;
-				charger_on = LOW;
-				break;
-
-			case kPowerState_ActiveCharging:
-				grp2_on = HIGH;
-				bus_on = HIGH;
-				charger_on = HIGH;
-				break;
-			
-			case kPowerState_Sleep:
-				grp2_on = HIGH;
-				bus_on = LOW;
-				charger_on = LOW;
-				break;
-
-			case kPowerState_SleepCharging:
-				grp2_on = HIGH;
-				bus_on = LOW;
-				charger_on = HIGH;
-				break;
-
-			case kPowerState_Charging:
-				grp2_on = LOW;
-				bus_on = LOW;
-				charger_on = HIGH;
-				break;
-				
-			case kPowerState_JustPoweredUp:
-				grp2_on = LOW;
-				bus_on = LOW;
-				charger_on = LOW;
-
-			default:
-				// should never get here
-				grp2_on = LOW;
-				bus_on = LOW;
-				charger_on = LOW;
-		}
 
 		digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
 		digitalWrite(kPIN_ENABLE_BUS_POWER, bus_on);

@@ -82,4 +82,7 @@ const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_
 #define kLEDBlinkInterval_mS 500	// toggle the LED twice per second when blinking
 const uint8_t kLEDBlinkCount = ( kLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
+#define kGroup2PowerGoodDelay_mS 250
+const uint8_t kGroup2PowerGoodDelayCount = ( kGroup2PowerGoodDelay_mS * kINTERRUPTS_PER_SEC / 1000);
+
 #endif /* POWERMANAGER_H_ */
