@@ -19,6 +19,14 @@
 
 int main(void)
 {
+	// set the output states before enabling them
+	digitalWrite(kPIN_TURN_POWER_OFF,			LOW);
+	digitalWrite(kPIN_ENABLE_BUS_POWER,			LOW);
+	digitalWrite(kPIN_CHARGER_ENABLE,			LOW);
+	digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT,	LOW);
+	digitalWrite(kPIN_ENABLE_POWER_GRP2,		HIGH);
+	digitalWrite(kPIN_GREEN_POWER_LED_ON_L,		HIGH);
+	digitalWrite(kPIN_RED_POWER_LED_ON_L,		HIGH);
 
 	// set up the output pins and turn the Group2 power on
 	pinMode(kPIN_BATTERY_V_SENSE,			INPUT);
@@ -30,7 +38,7 @@ int main(void)
 	pinMode(kPIN_TURN_POWER_OFF,			OUTPUT);
 	pinMode(kPIN_POWER_BUTTON_PRESSED,		INPUT);
 
-	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	INPUT);
+	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	OUTPUT);
 	pinMode(kPIN_CHARGER_ENABLE,			OUTPUT);
 	pinMode(kPIN_CHARGER_STAT2,				INPUT_PULLUP);
 	pinMode(kPIN_CHARGER_STAT1,				INPUT_PULLUP);
@@ -38,12 +46,6 @@ int main(void)
 	pinMode(kPIN_GREEN_POWER_LED_ON_L,		OUTPUT);
 	pinMode(kPIN_RED_POWER_LED_ON_L,		OUTPUT);
 
-	digitalWrite(kPIN_TURN_POWER_OFF,		LOW);
-	digitalWrite(kPIN_ENABLE_BUS_POWER,		HIGH);
-	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
-	digitalWrite(kPIN_ENABLE_POWER_GRP2,	HIGH);	
-	digitalWrite(kPIN_GREEN_POWER_LED_ON_L, HIGH);
-	digitalWrite(kPIN_RED_POWER_LED_ON_L,   HIGH);
 	
 	
 	// set up 8-bit timer 0 to generate an interrupt at a 50Hz rate
@@ -59,6 +61,8 @@ int main(void)
 
 	sei();									// enable interrupts
 	
+	digitalWrite(kPIN_ENABLE_BUS_POWER,			HIGH);	// do this last to make sure Grp2 power is on first
+
     while(1)
     {
 		sleep_mode();		//just keep going to sleep
