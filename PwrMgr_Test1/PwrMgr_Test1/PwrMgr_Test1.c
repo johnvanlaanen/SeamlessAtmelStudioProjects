@@ -15,6 +15,15 @@
 int main(void)
 {
 
+	digitalWrite(kPIN_TURN_POWER_OFF_L,		    HIGH);
+	digitalWrite(kPIN_ENABLE_BUS_POWER,		    LOW);
+	digitalWrite(kPIN_CHARGER_ENABLE,		    LOW);
+	digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT,	LOW);
+	digitalWrite(kPIN_ENABLE_POWER_GRP2,	    LOW);	
+	digitalWrite(kPIN_GREEN_POWER_LED_ON_L,     LOW);
+	digitalWrite(kPIN_RED_POWER_LED_ON_L,       LOW);
+
+
 	// set up the output pins and turn the Group2 power on
 	pinMode(kPIN_BATTERY_V_SENSE,			INPUT);
 	pinMode(kPIN_USB_DMINUS_SENSE,			INPUT);
@@ -25,7 +34,7 @@ int main(void)
 	pinMode(kPIN_TURN_POWER_OFF_L,			OUTPUT);
 	pinMode(kPIN_POWER_BUTTON_PRESSED,		INPUT);
 
-	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	INPUT);
+	pinMode(kPIN_CHARGER_SEL_HIGH_CURRENT,	OUTPUT);
 	pinMode(kPIN_CHARGER_ENABLE,			OUTPUT);
 	pinMode(kPIN_CHARGER_STAT2,				INPUT_PULLUP);
 	pinMode(kPIN_CHARGER_STAT1,				INPUT_PULLUP);
@@ -33,12 +42,6 @@ int main(void)
 	pinMode(kPIN_GREEN_POWER_LED_ON_L,		OUTPUT);
 	pinMode(kPIN_RED_POWER_LED_ON_L,		OUTPUT);
 
-	digitalWrite(kPIN_TURN_POWER_OFF_L,		HIGH);
-	digitalWrite(kPIN_ENABLE_BUS_POWER,		LOW);
-	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
-	digitalWrite(kPIN_ENABLE_POWER_GRP2,	HIGH);	
-	digitalWrite(kPIN_GREEN_POWER_LED_ON_L, LOW);
-	digitalWrite(kPIN_RED_POWER_LED_ON_L,   LOW);
 	
 
     while(1)
