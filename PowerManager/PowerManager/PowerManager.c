@@ -522,6 +522,7 @@ void UpdatePowerMode(void)
 			SystemState.group_2_power_good = 0;
 		} else {
 			SystemState.group_2_power_good = 1;
+			SystemState.new_power_state = 1;
 		}
 	} else {
 		SystemState.group2_on_count = 0;
@@ -638,20 +639,18 @@ int main(void)
 {
 	// set the output pin states before enabling any of them
 #ifdef TURN_POWER_OFF_ASSERT_LOW
-	digitalWrite(kPIN_TURN_POWER_OFF,		HIGH);
+	digitalWrite(kPIN_TURN_POWER_OFF,			HIGH);
 #else
-	digitalWrite(kPIN_TURN_POWER_OFF,		LOW);
+	digitalWrite(kPIN_TURN_POWER_OFF,			LOW);
 #endif
 
-	digitalWrite(kPIN_ENABLE_BUS_POWER,		LOW);
-	digitalWrite(kPIN_CHARGER_ENABLE,		LOW);
-	digitalWrite(kPIN_ENABLE_POWER_GRP2,	LOW);
-	digitalWrite(kPIN_GREEN_POWER_LED_ON_L, HIGH);
-	digitalWrite(kPIN_RED_POWER_LED_ON_L,   HIGH);
+	digitalWrite(kPIN_ENABLE_BUS_POWER,			LOW);
+	digitalWrite(kPIN_CHARGER_ENABLE,			LOW);
+	digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT,	LOW);
+	digitalWrite(kPIN_ENABLE_POWER_GRP2,		LOW);
+	digitalWrite(kPIN_GREEN_POWER_LED_ON_L,		HIGH);
+	digitalWrite(kPIN_RED_POWER_LED_ON_L,		HIGH);
 
-	//pinMode(kPIN_BATTERY_V_SENSE,			INPUT);			// ADC0
-	//pinMode(kPIN_USB_DMINUS_SENSE,		INPUT);			// ADC1
-	//pinMode(kPIN_USB_DPLUS_SENSE,			INPUT);			// ADC2
 	pinMode(kPIN_ENABLE_BUS_POWER,			OUTPUT);
 #ifdef BLUETOOTH_MODULE
 	pinMode(kPIN_REQ_SLEEP_MODE,			INPUT);
