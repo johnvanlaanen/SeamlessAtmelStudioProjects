@@ -34,15 +34,20 @@ typedef enum {
 typedef enum {
 	kPowerState_JustPoweredUp=0,
 	kPowerState_Charging,
+	kPowerState_ChargingDelay,
 	kPowerState_Sleep,
 	kPowerState_Active,
+	kPowerState_ActiveDelay,
 	kPowerState_SleepCharging,
 	kPowerState_ActiveCharging,
+	kPowerState_ActiveChargingDelay,
+	kPowerState_LowBatteryShutdown,
 } tModulePowerStates;
 
 typedef enum {
 	kBatteryState_FullCharge=0,
 	kBatteryState_LowCharge,
+	kBatteryState_VoltageTooLow,
 } tBatteryChargeStates;
 
 typedef enum {
@@ -50,6 +55,12 @@ typedef enum {
 	kBatteryMeasureState_InProcess,
 } tBatteryMeasureStates;
 
+
+typedef enum {
+	kLEDBlinkMode_NotBlinking = 0,
+	kLEDBlinkMode_Slow,
+	kLEDBlinkMode_Fast,
+	} tLEDBlinkModes;
 
 typedef enum {
 	kUSBState_PowerupSettle=0,
@@ -63,7 +74,7 @@ typedef enum {
 
 
 volatile struct {
-	uint8_t				  power_state_timeout_count;
+	uint8_t				  power_state_count;
 	uint8_t               button_pressed_count;
 	uint8_t               led_blink_delay;
 	uint8_t				  led_blink_on;
@@ -73,15 +84,15 @@ volatile struct {
 	uint8_t				  new_power_state;
 	uint8_t				  usb_power_available;
 	uint8_t				  usb_high_power_available;
-	uint8_t				  group2_on_count;
-	uint8_t				  group_2_power_good;
+	uint8_t				  group_2_power_on_good;
+	tLEDBlinkModes		  led_blink_mode;
 	tModulePowerStates    power_state;
 	tPowerButtonStates    button_state;
 	tSleepRequestStates	  sleep_req_state;
 	tUSBStates            usb_state;
 	tBatteryChargeStates  battery_charge_state;
 	tBatteryMeasureStates battery_measure_state;
-} SystemState= {.power_state_timeout_count = 0,
+} SystemState= {.power_state_count = 0,
 				.button_pressed_count	= 0,
 				.led_blink_delay		= 0,
 				.led_blink_on			= 0,
@@ -91,8 +102,8 @@ volatile struct {
 				.new_power_state		= 1,
 				.usb_power_available	= 0,
 				.usb_high_power_available = 0,
-				.group2_on_count		= 0,
-				.group_2_power_good		= 0,
+				.group_2_power_on_good	= 0,
+				.led_blink_mode			= kLEDBlinkMode_NotBlinking,
 				.power_state			= kPowerState_JustPoweredUp,
 				.button_state			= kButtonState_NotPressed,
 				.sleep_req_state		= kSleepReqState_NoRequest,
@@ -175,7 +186,7 @@ void UpdateSleepReqState(void)
 	switch(SystemState.sleep_req_state) {
 
 		case kSleepReqState_NoRequest:
-			if( (SystemState.group_2_power_good==1) && ( req_state == 1) )
+			if( (SystemState.group_2_power_on_good==1) && ( req_state == 1) )
 				SystemState.sleep_req_state = kSleepReqState_NewRequest;
 			break;
 
@@ -184,7 +195,7 @@ void UpdateSleepReqState(void)
 			break;
 
 		case kSleepReqState_Handshake:
-			if(( req_state == 0) || (SystemState.group_2_power_good==0) )
+			if(( req_state == 0) || (SystemState.group_2_power_on_good==0) )
 				SystemState.sleep_req_state = kSleepReqState_NoRequest;
 			break;
 	
@@ -346,8 +357,10 @@ void UpdateBatteryState(void)
 			SystemState.battery_measure_state = kBatteryMeasureState_Waiting;
 			if(adcval >= kADCVAL_BATTERY_FULL)
 				SystemState.battery_charge_state = kBatteryState_FullCharge;
-			else
+			else if(adcval >= kADCVAL_BATTERY_MIN)
 				SystemState.battery_charge_state = kBatteryState_LowCharge;
+			else
+				SystemState.battery_charge_state = kBatteryState_VoltageTooLow;
 			break;
 			
 		default:
@@ -364,6 +377,7 @@ void UpdatePowerMode(void)
 {
 	uint8_t grp2_on, bus_on, charger_on;
 
+	// determine the next state
 	switch(SystemState.power_state) {
 		
 		case kPowerState_JustPoweredUp:
@@ -371,29 +385,54 @@ void UpdatePowerMode(void)
 			// Once exited, this state is never returned to.
 			// Power on can be caused by either USB being plugged in or the button being pressed
 			// This state persists until it's determined which happened or until a timeout is reached
+			
+			// debug++
+			//	SystemState.power_state = kPowerState_Charging;
+			//	SystemState.power_state_count = 0;
+			//	SystemState.new_power_state = 1;			
+			//debug--
+			
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// the button was pressed and held for >5 seconds - just turn off
 				TurnPowerOff();
 			} else if(SystemState.button_state == kButtonState_JustReleased) {
 				// the button was pressed and released - go active
-				SystemState.power_state = kPowerState_Active;
+				SystemState.power_state = kPowerState_ActiveDelay;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available ) {
 				// USB power available - go to charging state
 				SystemState.power_state = kPowerState_Charging;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
-			} else if(SystemState.power_state_timeout_count >= kPowerUpStateTimeoutCount) {
+			//} else if(SystemState.battery_charge_state == kBatteryState_VoltageTooLow) {
+			//	SystemState.power_state = kPowerState_LowBatteryShutdown;
+			//	SystemState.power_state_count = 0;
+			//	SystemState.new_power_state = 1;
+			} else if(SystemState.power_state_count >= kPowerUpStateTimeoutCount) {
 				// nothing happened within timeout - turn off
 				TurnPowerOff();
 			}
-			if(SystemState.power_state_timeout_count < 255)
-				SystemState.power_state_timeout_count += 1;
+			if(SystemState.power_state_count < 255)
+				SystemState.power_state_count += 1;
 			break;
 		
+		case kPowerState_ChargingDelay:
+			// returning from ActiveCharging or SleepCharging. Turn the rest of the system off but don't enable charging yet
+			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
+				SystemState.power_state_count += 1;
+				} else {
+				SystemState.power_state = kPowerState_Charging;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			}
+			break;
+			
 		case kPowerState_Charging:
 			// plugged into USB and charging the battery. Remainder of the system powered off.
 			if( SystemState.button_state == kButtonState_JustReleased) {
-				SystemState.power_state = kPowerState_ActiveCharging;
+				SystemState.power_state = kPowerState_ActiveChargingDelay;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available==0 ) {
 				TurnPowerOff();
@@ -407,14 +446,31 @@ void UpdatePowerMode(void)
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
 				// the button was pressed or BT requested going active - go to active state
 				SystemState.power_state = kPowerState_Active;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available ) {
 				// USB was plugged in - keep the bus asleep but start charging the battery
 				SystemState.power_state = kPowerState_SleepCharging;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			} else if(SystemState.battery_charge_state == kBatteryState_VoltageTooLow) {
+				SystemState.power_state = kPowerState_LowBatteryShutdown;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
 			break;
 
+		case kPowerState_ActiveDelay:
+			// enables the rest of the system before enabling the bus
+			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
+				SystemState.power_state_count += 1;
+			} else {
+				SystemState.power_state = kPowerState_Active;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			}
+			break;
+			
 		case kPowerState_Active:
 			// Running on battery with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
@@ -423,10 +479,16 @@ void UpdatePowerMode(void)
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
 				// the button was pressed or BT requested a mode change - go to sleep state
 				SystemState.power_state = kPowerState_Sleep;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available == 1) {
 				// USB was plugged in - stay active but start charging the battery
 				SystemState.power_state = kPowerState_ActiveCharging;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			} else if(SystemState.battery_charge_state == kBatteryState_VoltageTooLow) {
+				SystemState.power_state = kPowerState_LowBatteryShutdown;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
 			break;
@@ -435,36 +497,60 @@ void UpdatePowerMode(void)
 			// Running on USB, charging the battery, with the bus powered but the rest of the system all active
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// long button press turns the system off but keeps charging the battery
-				SystemState.power_state = kPowerState_Charging;
+				SystemState.power_state = kPowerState_ChargingDelay;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
 				// the button was pressed or BT requested a transition - switch to active and keep charging the battery
 				SystemState.power_state = kPowerState_ActiveCharging;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available == 0 ) {
 				// USB power removed - stay in sleep mode but stop charging
 				SystemState.power_state = kPowerState_Sleep;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
 			break;
 
+
+		case kPowerState_ActiveChargingDelay:
+			// Running on USB, charging the battery, the whole system active, but the bus not powered yet
+			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
+				SystemState.power_state_count += 1;
+			} else {
+				SystemState.power_state = kPowerState_ActiveCharging;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			}
+			break;
 
 		case kPowerState_ActiveCharging:
 			// Running on USB, charging the battery, and with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// long button press turns the system off but keeps charging the battery
-				SystemState.power_state = kPowerState_Charging;
+				SystemState.power_state = kPowerState_ChargingDelay;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
 				// the button was pressed or BT requested a transition - switch to sleep and keep charging the battery
 				SystemState.power_state = kPowerState_SleepCharging;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available == 0 ) {
 				// USB power removed - stay in active mode but stop charging
 				SystemState.power_state = kPowerState_Active;
+				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
 			break;
+		
+		case kPowerState_LowBatteryShutdown:
+			// low battery shutdown - dwell here a bit before shutting down
+			if(SystemState.power_state_count < kBatteryShutdownDelayCount)
+				SystemState.power_state_count += 1;
+			else
+				TurnPowerOff();
 		
 		default:
 			// should never get here
@@ -473,96 +559,124 @@ void UpdatePowerMode(void)
 
 	// now set the outputs based on the state
 	switch( SystemState.power_state) {
+		case kPowerState_ActiveDelay:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = HIGH;
+			bus_on = LOW;
+			charger_on = LOW;
+			break;
+
 		case kPowerState_Active:
+			SystemState.group_2_power_on_good = 1;
 			grp2_on = HIGH;
 			bus_on = HIGH;
 			charger_on = LOW;
 			break;
 
+		case kPowerState_ActiveChargingDelay:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = HIGH;
+			bus_on = LOW;
+			charger_on = HIGH;
+			break;
+
 		case kPowerState_ActiveCharging:
+			SystemState.group_2_power_on_good = 1;
 			grp2_on = HIGH;
 			bus_on = HIGH;
 			charger_on = HIGH;
 			break;
 			
 		case kPowerState_Sleep:
+			SystemState.group_2_power_on_good = 1;
 			grp2_on = HIGH;
 			bus_on = LOW;
 			charger_on = LOW;
 			break;
 
 		case kPowerState_SleepCharging:
+			SystemState.group_2_power_on_good = 1;
 			grp2_on = HIGH;
 			bus_on = LOW;
 			charger_on = HIGH;
 			break;
 
+		case kPowerState_ChargingDelay:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = LOW;
+			break;
+
 		case kPowerState_Charging:
+			SystemState.group_2_power_on_good = 0;
 			grp2_on = LOW;
 			bus_on = LOW;
 			charger_on = HIGH;
 			break;
 				
 		case kPowerState_JustPoweredUp:
+			SystemState.group_2_power_on_good = 0;
 			grp2_on = LOW;
 			bus_on = LOW;
 			charger_on = LOW;
 
 		default:
 			// should never get here
+			SystemState.group_2_power_on_good = 0;
 			grp2_on = LOW;
 			bus_on = LOW;
 			charger_on = LOW;
 	}
 		
-	// keep track of how long Group2 power has been on in order to determine when it is good
-	if(grp2_on == HIGH) {
-		if(SystemState.group2_on_count < kGroup2PowerGoodDelayCount) {
-			SystemState.group2_on_count += 1;
-			SystemState.group_2_power_good = 0;
-		} else {
-			SystemState.group_2_power_good = 1;
-			SystemState.new_power_state = 1;
-		}
-	} else {
-		SystemState.group2_on_count = 0;
-		SystemState.group_2_power_good = 0;
-	}
 			
-	if(SystemState.new_power_state) {
+	//if(SystemState.new_power_state) {
 		SystemState.new_power_state = 0;
 
 		digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
-		digitalWrite(kPIN_ENABLE_BUS_POWER, bus_on);
+
+		// only enable bus power after group2 power has been on and stable
+		if( (bus_on==HIGH) && (SystemState.group_2_power_on_good == 1) )
+			digitalWrite(kPIN_ENABLE_BUS_POWER, HIGH);
+		else
+			digitalWrite(kPIN_ENABLE_BUS_POWER, LOW);
 
 		if( (charger_on == HIGH) && (SystemState.usb_high_power_available == 1) )
 			digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, HIGH);
 		else
 			digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
 				
-		digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
-	}
+		//digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
+		digitalWrite(kPIN_CHARGER_ENABLE, HIGH);
+	//}
 }
 
 
 // update the LEDs
 void UpdateLEDs(void)
 {
-	uint8_t green_off, red_off, blink_change, blinking;
+	uint8_t green_off, red_off, blink_change;
 
 	// The blinking state free runs regardless of whether the LEDs are actually blinking or not
 	// Whether they actually get turned off due to blinking is determined further down
-	if( SystemState.led_blink_delay == 0) {
-		SystemState.led_blink_delay = kLEDBlinkCount;
+	if( (SystemState.led_blink_mode == kLEDBlinkMode_Slow) && (SystemState.led_blink_delay > kLEDBlinkCount) ) {
+		SystemState.led_blink_delay = 0;
 		blink_change = 1;
 		if(SystemState.led_blink_on)
 			SystemState.led_blink_on = 0;
 		else
 			SystemState.led_blink_on = 1;
-	} else {
-		SystemState.led_blink_delay -= 1;
-		blink_change = 0;
+	} else if( (SystemState.led_blink_mode == kLEDBlinkMode_Fast) && (SystemState.led_blink_delay > kFastLEDBlinkCount) ) {
+		SystemState.led_blink_delay = 0;
+		blink_change = 1;
+		if(SystemState.led_blink_on)
+			SystemState.led_blink_on = 0;
+		else
+			SystemState.led_blink_on = 1;
+	} else if(SystemState.led_blink_delay < 255) {
+		SystemState.led_blink_delay += 1;
 	}
+	
 	
 	// Only update the i/o ports when something changes
 	if( (blink_change) || (SystemState.new_power_state)) {
@@ -573,9 +687,10 @@ void UpdateLEDs(void)
 			red_off = 0;	// Amber
 		else
 			red_off = 1;	// Green
-		blinking = 0;
 		
-		// determine that the LEDs are doing based on the current power state
+		SystemState.led_blink_mode = kLEDBlinkMode_NotBlinking;
+		
+		// determine what the LEDs are doing based on the current power state
 		switch(SystemState.power_state) {
 			case kPowerState_JustPoweredUp:
 				// keep the LEDs off until the power stabilizes
@@ -588,19 +703,24 @@ void UpdateLEDs(void)
 				green_off = 1;
 				red_off = 0;
 				if(SystemState.battery_charge_state == kBatteryState_LowCharge)
-					blinking = 1;
+					SystemState.led_blink_mode = kLEDBlinkMode_Slow;
 				break;
 
+			case kPowerState_LowBatteryShutdown:
+				green_off=0;
+				red_off=0;
+				SystemState.led_blink_mode = kLEDBlinkMode_Fast;
+			
 			case kPowerState_SleepCharging:
 			case kPowerState_Sleep:
-				blinking = 1;
+				SystemState.led_blink_mode = kLEDBlinkMode_Slow;
 				break;
 
 			default:
 				break;
 		}
 
-		if( blinking && (SystemState.led_blink_on==0) ) {
+		if( (SystemState.led_blink_mode != kLEDBlinkMode_NotBlinking) && (SystemState.led_blink_on==0) ) {
 			green_off = 1;
 			red_off = 1;
 		}
@@ -624,6 +744,7 @@ ISR(TIMER0_COMPA_vect)
 	// Startup delay - lets voltages settle
 	if(startupCount < kPowerUpDelayCount) {
 		startupCount += 1;
+
 	} else {
 		UpdateButtonState();
 		UpdateSleepReqState();
