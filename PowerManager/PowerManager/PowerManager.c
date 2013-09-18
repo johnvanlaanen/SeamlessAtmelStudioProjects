@@ -34,13 +34,15 @@ typedef enum {
 typedef enum {
 	kPowerState_JustPoweredUp=0,
 	kPowerState_Charging,
-	kPowerState_ChargingDelay,
+	kPowerState_ChargingDelay1,
+	kPowerState_ChargingDelay2,
 	kPowerState_Sleep,
 	kPowerState_Active,
 	kPowerState_ActiveDelay,
 	kPowerState_SleepCharging,
 	kPowerState_ActiveCharging,
-	kPowerState_ActiveChargingDelay,
+	kPowerState_ActiveChargingDelay1,
+	kPowerState_ActiveChargingDelay2,
 	kPowerState_LowBatteryShutdown,
 } tModulePowerStates;
 
@@ -411,21 +413,32 @@ void UpdatePowerMode(void)
 				SystemState.power_state_count += 1;
 			break;
 		
-		case kPowerState_ChargingDelay:
-			// returning from ActiveCharging or SleepCharging. Turn the rest of the system off but don't enable charging yet
+		case kPowerState_ChargingDelay1:
+			// returning from ActiveCharging or SleepCharging. Turn Turn off Charge enable before turning off grp2 power
 			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
 				SystemState.power_state_count += 1;
-				} else {
-				SystemState.power_state = kPowerState_Charging;
+			} else {
+				SystemState.power_state = kPowerState_ChargingDelay2;
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
 			break;
 			
+		case kPowerState_ChargingDelay2:
+			// returning from ActiveCharging or SleepCharging. Turn off grp2 power
+			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
+				SystemState.power_state_count += 1;
+			} else {
+				SystemState.power_state = kPowerState_Charging;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			}
+		break;
+
 		case kPowerState_Charging:
 			// plugged into USB and charging the battery. Remainder of the system powered off.
 			if( SystemState.button_state == kButtonState_JustReleased) {
-				SystemState.power_state = kPowerState_ActiveChargingDelay;
+				SystemState.power_state = kPowerState_ActiveChargingDelay1;
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( SystemState.usb_power_available==0 ) {
@@ -491,7 +504,7 @@ void UpdatePowerMode(void)
 			// Running on USB, charging the battery, with the bus powered but the rest of the system all active
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// long button press turns the system off but keeps charging the battery
-				SystemState.power_state = kPowerState_ChargingDelay;
+				SystemState.power_state = kPowerState_ChargingDelay1;
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
@@ -507,9 +520,19 @@ void UpdatePowerMode(void)
 			}
 			break;
 
+		case kPowerState_ActiveChargingDelay1:
+			// Transition from charging to active charging. Turn off charge enable first
+			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
+				SystemState.power_state_count += 1;
+			} else {
+				SystemState.power_state = kPowerState_ActiveChargingDelay2;
+				SystemState.power_state_count = 0;
+				SystemState.new_power_state = 1;
+			}
+			break;
 
-		case kPowerState_ActiveChargingDelay:
-			// Running on USB, charging the battery, the whole system active, but the bus not powered yet
+		case kPowerState_ActiveChargingDelay2:
+			// Transition from charging to active charging. Turn on grp2 power next
 			if(SystemState.power_state_count < kGroup2PowerGoodDelayCount) {
 				SystemState.power_state_count += 1;
 			} else {
@@ -517,13 +540,13 @@ void UpdatePowerMode(void)
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			}
-			break;
+		break;
 
 		case kPowerState_ActiveCharging:
 			// Running on USB, charging the battery, and with the bus powered and the whole system active
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// long button press turns the system off but keeps charging the battery
-				SystemState.power_state = kPowerState_ChargingDelay;
+				SystemState.power_state = kPowerState_ChargingDelay1;
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
 			} else if( (SystemState.button_state == kButtonState_JustReleased) || (SystemState.sleep_req_state == kSleepReqState_NewRequest) ) {
@@ -568,11 +591,18 @@ void UpdatePowerMode(void)
 			charger_on = LOW;
 			break;
 
-		case kPowerState_ActiveChargingDelay:
+		case kPowerState_ActiveChargingDelay1:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = LOW;
+			break;
+
+		case kPowerState_ActiveChargingDelay2:
 			SystemState.group_2_power_on_good = 0;
 			grp2_on = HIGH;
 			bus_on = LOW;
-			charger_on = HIGH;
+			charger_on = LOW;
 			break;
 
 		case kPowerState_ActiveCharging:
@@ -596,7 +626,14 @@ void UpdatePowerMode(void)
 			charger_on = HIGH;
 			break;
 
-		case kPowerState_ChargingDelay:
+		case kPowerState_ChargingDelay1:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = HIGH;
+			bus_on = LOW;
+			charger_on = LOW;
+			break;
+
+		case kPowerState_ChargingDelay2:
 			SystemState.group_2_power_on_good = 0;
 			grp2_on = LOW;
 			bus_on = LOW;
