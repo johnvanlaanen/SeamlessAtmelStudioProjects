@@ -338,29 +338,33 @@ void UpdateBatteryState(void)
 	int16_t adcval;
 		
 	// battery measurements are only done about once per second
-	if(SystemState.battery_measure_delay > 0)
-		SystemState.battery_measure_delay -= 1;
-		
 	switch(SystemState.battery_measure_state) {
 		case kBatteryMeasureState_Waiting:
-			if( (SystemState.battery_measure_delay == 0) && (SystemState.adc_in_use==0) ) {
-				analogReadStart(kPIN_BATTERY_V_SENSE);     // start a new battery voltage measurement
-				SystemState.battery_measure_state = kBatteryMeasureState_InProcess;
-				SystemState.adc_in_use = 1;         // let everyone else know the ADC is being used
+			if(SystemState.battery_measure_delay < kBatteryMeasureCount) {
+				SystemState.battery_measure_delay += 1;
+			} else {
+				if(SystemState.adc_in_use == 0) {
+					analogReadStart(kPIN_BATTERY_V_SENSE);     // start a new battery voltage measurement
+					SystemState.battery_measure_state = kBatteryMeasureState_InProcess;
+					SystemState.adc_in_use = 1;         // indicate that the ADC is being used
+				}
 			}
 			break;
 			
 		case  kBatteryMeasureState_InProcess:
 			adcval = analogReadFinish();    // get the battery voltage measurement
+			
 			SystemState.adc_in_use = 0;             // done using the ADC
-			SystemState.battery_measure_delay = kBatteryMeasureCount;
+			SystemState.battery_measure_delay = 0;
 			SystemState.battery_measure_state = kBatteryMeasureState_Waiting;
+			
 			if(adcval >= kADCVAL_BATTERY_FULL)
 				SystemState.battery_charge_state = kBatteryState_FullCharge;
 			else if(adcval >= kADCVAL_BATTERY_MIN)
 				SystemState.battery_charge_state = kBatteryState_LowCharge;
 			else
 				SystemState.battery_charge_state = kBatteryState_VoltageTooLow;
+
 			break;
 			
 		default:
@@ -386,12 +390,6 @@ void UpdatePowerMode(void)
 			// Power on can be caused by either USB being plugged in or the button being pressed
 			// This state persists until it's determined which happened or until a timeout is reached
 			
-			// debug++
-			//	SystemState.power_state = kPowerState_Charging;
-			//	SystemState.power_state_count = 0;
-			//	SystemState.new_power_state = 1;			
-			//debug--
-			
 			if(SystemState.button_state == kButtonState_PressedLong) {
 				// the button was pressed and held for >5 seconds - just turn off
 				TurnPowerOff();
@@ -405,10 +403,6 @@ void UpdatePowerMode(void)
 				SystemState.power_state = kPowerState_Charging;
 				SystemState.power_state_count = 0;
 				SystemState.new_power_state = 1;
-			//} else if(SystemState.battery_charge_state == kBatteryState_VoltageTooLow) {
-			//	SystemState.power_state = kPowerState_LowBatteryShutdown;
-			//	SystemState.power_state_count = 0;
-			//	SystemState.new_power_state = 1;
 			} else if(SystemState.power_state_count >= kPowerUpStateTimeoutCount) {
 				// nothing happened within timeout - turn off
 				TurnPowerOff();
@@ -551,7 +545,8 @@ void UpdatePowerMode(void)
 				SystemState.power_state_count += 1;
 			else
 				TurnPowerOff();
-		
+			break;
+			
 		default:
 			// should never get here
 			TurnPowerOff();
@@ -621,6 +616,12 @@ void UpdatePowerMode(void)
 			bus_on = LOW;
 			charger_on = LOW;
 
+		case kPowerState_LowBatteryShutdown:
+			SystemState.group_2_power_on_good = 0;
+			grp2_on = LOW;
+			bus_on = LOW;
+			charger_on = LOW;
+
 		default:
 			// should never get here
 			SystemState.group_2_power_on_good = 0;
@@ -630,7 +631,7 @@ void UpdatePowerMode(void)
 	}
 		
 			
-	//if(SystemState.new_power_state) {
+	if(SystemState.new_power_state) {
 		SystemState.new_power_state = 0;
 
 		digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
@@ -646,9 +647,8 @@ void UpdatePowerMode(void)
 		else
 			digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
 				
-		//digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
-		digitalWrite(kPIN_CHARGER_ENABLE, HIGH);
-	//}
+		digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
+	}
 }
 
 
@@ -659,7 +659,7 @@ void UpdateLEDs(void)
 
 	// The blinking state free runs regardless of whether the LEDs are actually blinking or not
 	// Whether they actually get turned off due to blinking is determined further down
-	if( (SystemState.led_blink_mode == kLEDBlinkMode_Slow) && (SystemState.led_blink_delay > kLEDBlinkCount) ) {
+	if( (SystemState.led_blink_mode == kLEDBlinkMode_Slow) && (SystemState.led_blink_delay > kLEDSlowBlinkCount) ) {
 		SystemState.led_blink_delay = 0;
 		blink_change = 1;
 		if(SystemState.led_blink_on)
@@ -710,7 +710,8 @@ void UpdateLEDs(void)
 				green_off=0;
 				red_off=0;
 				SystemState.led_blink_mode = kLEDBlinkMode_Fast;
-			
+				break;
+				
 			case kPowerState_SleepCharging:
 			case kPowerState_Sleep:
 				SystemState.led_blink_mode = kLEDBlinkMode_Slow;

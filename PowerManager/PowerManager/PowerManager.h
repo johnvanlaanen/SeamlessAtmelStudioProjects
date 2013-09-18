@@ -81,10 +81,10 @@ const uint8_t kUSBMeasureDelayCount = (kUSB_MeasureDelay_Sec * kINTERRUPTS_PER_S
 #define kBatteryMeasureInterval_Sec 1      //measure the battery voltage once per second
 const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_PER_SEC );
 
-#define kLEDBlinkInterval_mS 500	// toggle the LED twice per second when blinking
-const uint8_t kLEDBlinkCount = ( kLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
+#define kLEDSlowBlinkInterval_mS 500	// toggle the LED twice per second when blinking
+const uint8_t kLEDSlowBlinkCount = ( kLEDSlowBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
-#define kFastLEDBlinkInterval_mS 200	// toggle the LED 5 times per second when blinking fast
+#define kFastLEDBlinkInterval_mS 40	// toggle the LED 5 times per second when blinking fast
 const uint8_t kFastLEDBlinkCount = ( kFastLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
 #define kGroup2PowerGoodDelay_mS 250
