@@ -60,8 +60,8 @@ typedef enum {
 
 typedef enum {
 	kLEDBlinkMode_NotBlinking = 0,
-	kLEDBlinkMode_Slow,
-	kLEDBlinkMode_Fast,
+	kLEDBlinkMode_BlinkingSlow,
+	kLEDBlinkMode_BlinkingFast,
 	} tLEDBlinkModes;
 
 typedef enum {
@@ -696,24 +696,22 @@ void UpdateLEDs(void)
 
 	// The blinking state free runs regardless of whether the LEDs are actually blinking or not
 	// Whether they actually get turned off due to blinking is determined further down
-	if( (SystemState.led_blink_mode == kLEDBlinkMode_Slow) && (SystemState.led_blink_delay > kLEDSlowBlinkCount) ) {
+	if( (SystemState.led_blink_mode == kLEDBlinkMode_BlinkingSlow) && (SystemState.led_blink_delay > kLEDSlowBlinkCount) ) {
 		SystemState.led_blink_delay = 0;
 		blink_change = 1;
-		if(SystemState.led_blink_on)
-			SystemState.led_blink_on = 0;
-		else
-			SystemState.led_blink_on = 1;
-	} else if( (SystemState.led_blink_mode == kLEDBlinkMode_Fast) && (SystemState.led_blink_delay > kFastLEDBlinkCount) ) {
+	} else if( (SystemState.led_blink_mode == kLEDBlinkMode_BlinkingFast) && (SystemState.led_blink_delay > kFastLEDBlinkCount) ) {
 		SystemState.led_blink_delay = 0;
 		blink_change = 1;
-		if(SystemState.led_blink_on)
-			SystemState.led_blink_on = 0;
-		else
-			SystemState.led_blink_on = 1;
 	} else if(SystemState.led_blink_delay < 255) {
 		SystemState.led_blink_delay += 1;
 	}
 	
+	if(blink_change) {
+		if(SystemState.led_blink_on)
+			SystemState.led_blink_on = 0;
+		else
+			SystemState.led_blink_on = 1;
+	}
 	
 	// Only update the i/o ports when something changes
 	if( (blink_change) || (SystemState.new_power_state)) {
@@ -740,18 +738,18 @@ void UpdateLEDs(void)
 				green_off = 1;
 				red_off = 0;
 				if(SystemState.battery_charge_state == kBatteryState_LowCharge)
-					SystemState.led_blink_mode = kLEDBlinkMode_Slow;
+					SystemState.led_blink_mode = kLEDBlinkMode_BlinkingSlow;
 				break;
 
 			case kPowerState_LowBatteryShutdown:
 				green_off=0;
 				red_off=0;
-				SystemState.led_blink_mode = kLEDBlinkMode_Fast;
+				SystemState.led_blink_mode = kLEDBlinkMode_BlinkingFast;
 				break;
 				
 			case kPowerState_SleepCharging:
 			case kPowerState_Sleep:
-				SystemState.led_blink_mode = kLEDBlinkMode_Slow;
+				SystemState.led_blink_mode = kLEDBlinkMode_BlinkingSlow;
 				break;
 
 			default:
@@ -853,7 +851,7 @@ int main(void)
 	
 	while(1)
 	{
-		sleep_mode();		//just keep going to sleep
+		sleep_mode();		//just keep going to sleep. Everything is happening in the interrupt
 	}
 }
 
