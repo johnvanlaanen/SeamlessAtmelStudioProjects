@@ -46,16 +46,19 @@ const uint8_t  kTCCR0_COUNT_VALUE = ((kCPU_CLOCK_FREQ / 1024 / kINTERRUPTS_PER_S
 
 #define kSUPPLY_VOLTAGE_x10 28		// the supply voltage, times 10
 
-#define kMIN_BATTERY_VOLTS_x10 29	//the min battery level for operation. Turn off if it's below this level when on battery
-const int16_t kADCVAL_BATTERY_MIN = (kMIN_BATTERY_VOLTS_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));
-
 #define kUSB_DATA_V_MIN_x10 25		// The min USB data line voltage indicating a high current device, times 10
 #define kUSB_DATA_V_MAX_x10 31		// The max USB data line voltage indicating a high current device, times 10
 const int16_t kADCVAL_USB_DATA_MIN = (kUSB_DATA_V_MIN_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Min ADC value for high current sense
 const int16_t kADCVAL_USB_DATA_MAX = (kUSB_DATA_V_MAX_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));	// Max ADC value for high current sense
 
-#define kBATTERY_FULL_VOLTS_x10 36	// The battery voltage above which to indicate a full charge, times 10
+#define kBATTERY_FULL_VOLTS_x10 39	// The battery voltage above which to indicate a full charge, times 10
 const int16_t kADCVAL_BATTERY_FULL = ( (kBATTERY_FULL_VOLTS_x10/2) * 1024) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
+
+#define kBATTERY_MEDIUM_VOLTS_x10 36	// The battery voltage above which to indicate a full charge, times 10
+const int16_t kADCVAL_BATTERY_MEDIUM = ( kBATTERY_MEDIUM_VOLTS_x10 * (1024/2)) / (kSUPPLY_VOLTAGE_x10); // ADC value for full charge
+
+#define kBATTERY_MIN_VOLTS_x10 29	//the min battery level for operation. Turn off if it's below this level when on battery
+const int16_t kADCVAL_BATTERY_MIN = (kBATTERY_MIN_VOLTS_x10 * 1024 / (2*kSUPPLY_VOLTAGE_x10));
 
 #define kPowerUpDelay_mS 100		// the amount of time to wait on powerup for things to settle
 const uint8_t kPowerUpDelayCount = (kPowerUpDelay_mS * kINTERRUPTS_PER_SEC / 1000);
@@ -84,8 +87,8 @@ const uint8_t kBatteryMeasureCount = (kBatteryMeasureInterval_Sec * kINTERRUPTS_
 #define kLEDSlowBlinkInterval_mS 500	// toggle the LED twice per second when blinking
 const uint8_t kLEDSlowBlinkCount = ( kLEDSlowBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
-#define kFastLEDBlinkInterval_mS 40	// toggle the LED 5 times per second when blinking fast
-const uint8_t kFastLEDBlinkCount = ( kFastLEDBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
+#define kLEDFastBlinkInterval_mS 40	// toggle the LED 5 times per second when blinking fast
+const uint8_t kLEDFastBlinkCount = ( kLEDFastBlinkInterval_mS * kINTERRUPTS_PER_SEC / 1000);
 
 #define kGroup2PowerGoodDelay_mS 250
 const uint8_t kGroup2PowerGoodDelayCount = ( kGroup2PowerGoodDelay_mS * kINTERRUPTS_PER_SEC / 1000);
