@@ -66,7 +66,7 @@ const uint8_t kPowerUpDelayCount = (kPowerUpDelay_mS * kINTERRUPTS_PER_SEC / 100
 #define kPowerUpStateTimeout_Sec 2	// the max amount of time to wait in the powerup state to figure why power was turned on
 const uint8_t kPowerUpStateTimeoutCount = (kPowerUpStateTimeout_Sec * kINTERRUPTS_PER_SEC);
 
-#define kButtonDebounceTime_mS 20
+#define kButtonDebounceTime_mS 40
 const uint8_t kButtonDebounceCount = (kButtonDebounceTime_mS * kINTERRUPTS_PER_SEC / 1000);
 
 #define kButtonLongPressTime_Sec 5

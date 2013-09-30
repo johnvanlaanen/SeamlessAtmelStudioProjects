@@ -19,7 +19,8 @@
 
 
 typedef enum {
-	kButtonState_NotPressed=0,
+	kButtonState_PowerOn=0,
+	kButtonState_NotPressed,
 	kButtonState_Pressed,
 	kButtonState_PressedLong,
 	kButtonState_JustReleased,
@@ -79,9 +80,10 @@ typedef enum {
 volatile struct {
 	uint8_t				  power_state_count;
 	uint8_t               button_pressed_count;
+	uint8_t               button_debounce_count;
 	uint8_t               led_blink_delay;
 	uint8_t				  led_blink_on;
-	uint8_t               usb_debounce_count;
+	uint8_t               usb_state_count;
 	uint8_t               battery_measure_delay;
 	uint8_t               adc_in_use;
 	uint8_t				  usb_power_available;
@@ -98,7 +100,7 @@ volatile struct {
 				.button_pressed_count	= 0,
 				.led_blink_delay		= 0,
 				.led_blink_on			= 0,
-				.usb_debounce_count		= 0,
+				.usb_state_count		= 0,
 				.battery_measure_delay	= 0,
 				.adc_in_use				= 0,
 				.usb_power_available	= 0,
@@ -139,35 +141,72 @@ void UpdateButtonState(void)
 	int button_pressed = digitalRead(kPIN_POWER_BUTTON_PRESSED);
 #endif
 
-	if( button_pressed ) {
-		if(SystemState.button_pressed_count < 255)
-			SystemState.button_pressed_count+= 1;
-	} else {
-		SystemState.button_pressed_count = 0;
-	}
-	
+	// button push is recognized immediately, and it's the release that's debounced
+	// state transitions happen on the (debounced) button release.
 	switch(SystemState.button_state) {
+		case kButtonState_PowerOn:
+			// just powered up because the button was pressed. Wait for a debounced button release
+			// before going directly to the not pressed state (skip the JustReleased state)
+			// This prevents the release after the turn-push from putting the bus into sleep mode
+			if( button_pressed == 0 ) {
+				if(SystemState.button_debounce_count < kButtonDebounceCount) {
+					SystemState.button_debounce_count += 1;
+				} else {
+					SystemState.button_state = kButtonState_NotPressed;
+					SystemState.button_debounce_count = 0;
+					SystemState.button_pressed_count = 0;
+				}
+			} else {
+				SystemState.button_debounce_count = 0;
+			}
+		
 		case kButtonState_NotPressed:
-			if(SystemState.button_pressed_count >= kButtonDebounceCount)
-				SystemState.button_state = kButtonState_Pressed;					
+			if(button_pressed) {
+				SystemState.button_state = kButtonState_Pressed;
+				SystemState.button_debounce_count = 0;
+				SystemState.button_pressed_count = 0;
+			}
 			break;
-				
+		
 		case kButtonState_Pressed:
-			if(button_pressed == 0)
-				SystemState.button_state = kButtonState_JustReleased;
-			else if(SystemState.button_pressed_count >= kButtonLongPressCount)
-				SystemState.button_state = kButtonState_PressedLong;
-		break;
+			// stay in this state until the button release is debounced, or until the button is held long
+			if(button_pressed == 0) {
+				// button is released - debounce the release before transitioning
+				SystemState.button_pressed_count = 0;
+				if(SystemState.button_debounce_count < kButtonDebounceCount) {
+					SystemState.button_debounce_count += 1;
+				} else {
+					SystemState.button_state = kButtonState_JustReleased;
+				}
+			} else {
+				SystemState.button_debounce_count = 0;
+				if(SystemState.button_pressed_count < kButtonLongPressCount) {
+					SystemState.button_pressed_count += 1;
+				} else {
+					SystemState.button_state = kButtonState_PressedLong;
+				}
+			}
+			break;
 
 		case kButtonState_JustReleased:
+			// this state lasts only one tick and signals the button released event
 			SystemState.button_state = kButtonState_NotPressed;
 			break;
-								
+		
 		case kButtonState_PressedLong:
-			if(button_pressed == 0)
-				SystemState.button_state = kButtonState_NotPressed;
+			// stay in this state until the button release is debounced
+			if(button_pressed == 0) {
+				if(SystemState.button_debounce_count < kButtonDebounceCount) {
+					SystemState.button_debounce_count += 1;
+				} else {
+					SystemState.button_state = kButtonState_NotPressed;
+				}
+			} else {
+				SystemState.button_debounce_count = 0;
+			}
+
 			break;
-			
+		
 		default:
 			// should never get here
 			SystemState.button_state = kButtonState_NotPressed;
@@ -187,8 +226,9 @@ void UpdateSleepReqState(void)
 	switch(SystemState.sleep_req_state) {
 
 		case kSleepReqState_NoRequest:
-			if( (SystemState.group_2_power_on_good==1) && ( req_state == 1) )
+			if( (SystemState.group_2_power_on_good==1) && ( req_state == 1) ) {
 				SystemState.sleep_req_state = kSleepReqState_NewRequest;
+			}
 			break;
 
 		case kSleepReqState_NewRequest:
@@ -196,8 +236,9 @@ void UpdateSleepReqState(void)
 			break;
 
 		case kSleepReqState_Handshake:
-			if(( req_state == 0) || (SystemState.group_2_power_on_good==0) )
+			if(( req_state == 0) || (SystemState.group_2_power_on_good==0) ) {
 				SystemState.sleep_req_state = kSleepReqState_NoRequest;
+			}
 			break;
 	
 	}
@@ -214,14 +255,16 @@ void UpdateUSBState(void)
 
 	switch(SystemState.usb_state) {
 		case kUSBState_PowerupSettle:
-			// Provides some additional settling time on powerup, before moving to the debounce state
+			// Provides some additional settling time on powerup caused by USB being plugged in
 			// Should never return to this state once it's left
-			SystemState.usb_power_available = 0;
+			SystemState.usb_power_available = 1;
 			SystemState.usb_high_power_available = 0;
-			if( SystemState.usb_debounce_count < 255 )
-				SystemState.usb_debounce_count += 1;
-			if(SystemState.usb_debounce_count >=kUSBPowerupSettleCount)
+			if( SystemState.usb_state_count < kUSBPowerupSettleCount ) {
+				SystemState.usb_state_count += 1;
+			} else {
 				SystemState.usb_state = kUSBState_Debounce;
+				SystemState.usb_state_count = 0;
+			}
 			break;
 			
 		case kUSBState_Unplugged:
@@ -230,7 +273,7 @@ void UpdateUSBState(void)
 			SystemState.usb_high_power_available = 0;
 			if(usb_power_sense_l == 0) {
 				SystemState.usb_state = kUSBState_Debounce;
-				SystemState.usb_debounce_count = 0;
+				SystemState.usb_state_count = 0;
 			}
 			break;
 			
@@ -239,10 +282,10 @@ void UpdateUSBState(void)
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
 			} else {
-				if( SystemState.usb_debounce_count < 255 )
-					SystemState.usb_debounce_count += 1;
-				if(SystemState.usb_debounce_count > kUSBDebounceCount) {
-					SystemState.usb_debounce_count = 0;	// reset count for the next state
+				if( SystemState.usb_state_count < kUSBDebounceCount ) {
+					SystemState.usb_state_count += 1;
+				} else {
+					SystemState.usb_state_count = 0;	// reset count for the next state
 					SystemState.usb_state = kUSBState_PluggedMeasureDelay;
 					SystemState.usb_power_available = 1;
 				}
@@ -253,27 +296,24 @@ void UpdateUSBState(void)
 			// USB power is on. Wait a bit to measure the D+/- voltages to determine charging level
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
-				SystemState.usb_power_available = 0;
-				SystemState.usb_high_power_available = 0;
 			} else {		
-				if( SystemState.usb_debounce_count < 255 )
-					SystemState.usb_debounce_count += 1;
-				
-				if( (SystemState.usb_debounce_count > kUSBMeasureDelayCount)  && (SystemState.adc_in_use==0) ) {
-					// start an ADC measurement of the D+ voltage once the delay expires
-					analogReadStart(kPIN_USB_DPLUS_SENSE);
-					SystemState.adc_in_use = 1;
-					SystemState.usb_state = kUSBState_PluggedMeasureDPlus;
+				if( SystemState.usb_state_count < kUSBMeasureDelayCount ) {
+					SystemState.usb_state_count += 1;
+				} else {
+					if( SystemState.adc_in_use==0) {
+						// start an ADC measurement of the D+ voltage once the delay expires
+						analogReadStart(kPIN_USB_DPLUS_SENSE);
+						SystemState.adc_in_use = 1;
+						SystemState.usb_state = kUSBState_PluggedMeasureDPlus;
+					}
 				}
-			}	
+			}
 			break;
 		
 		case kUSBState_PluggedMeasureDPlus:	
 			// gets the ADC conversion result for the D+ line and decides what to do next.
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
-				SystemState.usb_power_available = 0;
-				SystemState.usb_high_power_available = 0;
 				SystemState.adc_in_use = 0;
 			} else {
 				adcval = analogReadFinish();    // get the D+ voltage measurement
@@ -296,8 +336,6 @@ void UpdateUSBState(void)
 			SystemState.adc_in_use = 0;		// done using the ADC no matter what
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
-				SystemState.usb_power_available = 0;
-				SystemState.usb_high_power_available = 0;
 			} else {
 				adcval = analogReadFinish();    // get the D- voltage measurement
 				SystemState.usb_state = kUSBState_PluggedIn;	// we go here no matter what at this point
@@ -312,16 +350,12 @@ void UpdateUSBState(void)
 			// stay in this state until USB unplugged
 			if(usb_power_sense_l != 0) {
 				SystemState.usb_state = kUSBState_Unplugged;
-				SystemState.usb_power_available = 0;
-				SystemState.usb_high_power_available = 0;
 			}
 			break;
 
 		default:
 			// should never get here
 			SystemState.usb_state = kUSBState_Unplugged;
-			SystemState.usb_power_available = 0;
-			SystemState.usb_high_power_available = 0;
 	}
 }
 
@@ -537,10 +571,11 @@ void UpdatePowerMode(void)
 		
 		case kPowerState_LowBatteryShutdown:
 			// low battery shutdown - dwell here a bit before shutting down
-			if(SystemState.power_state_count < kBatteryShutdownDelayCount)
+			if(SystemState.power_state_count < kBatteryShutdownDelayCount) {
 				SystemState.power_state_count += 1;
-			else
+			} else {
 				TurnPowerOff();
+			}
 			break;
 			
 		default:
@@ -644,15 +679,17 @@ void UpdatePowerMode(void)
 	digitalWrite(kPIN_ENABLE_POWER_GRP2, grp2_on);
 
 	// only enable bus power after group2 power has been on and stable
-	if( (bus_on==HIGH) && (SystemState.group_2_power_on_good == 1) )
+	if( (bus_on==HIGH) && (SystemState.group_2_power_on_good == 1) ) {
 		digitalWrite(kPIN_ENABLE_BUS_POWER, HIGH);
-	else
+	} else {
 		digitalWrite(kPIN_ENABLE_BUS_POWER, LOW);
+	}
 
-	if( (charger_on == HIGH) && (SystemState.usb_high_power_available == 1) )
+	if( (charger_on == HIGH) && (SystemState.usb_high_power_available == 1) ) {
 		digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, HIGH);
-	else
+	} else {
 		digitalWrite(kPIN_CHARGER_SEL_HIGH_CURRENT, LOW);
+	}
 				
 	digitalWrite(kPIN_CHARGER_ENABLE, charger_on);
 }
@@ -801,6 +838,28 @@ int main(void)
 	pinMode(kPIN_ENABLE_POWER_GRP2,			OUTPUT);
 	pinMode(kPIN_GREEN_POWER_LED_ON_L,		OUTPUT);
 	pinMode(kPIN_RED_POWER_LED_ON_L,		OUTPUT);
+
+	// determine the cause of powerup and preset some of the ISR state machines accordingly
+	if(digitalRead(kPIN_USB_POWER_SENSE_L) == LOW) {
+		// power was caused by USB being plugged in
+		SystemState.usb_state = kUSBState_PowerupSettle;
+		SystemState.usb_state_count = 0;
+		
+		SystemState.button_state = kButtonState_NotPressed;
+		
+		SystemState.power_state = kPowerState_Charging; // need to scrub - when are data lines measured?
+		
+	} else {
+		// must be a button push since it wasn't USB
+		SystemState.usb_state = kUSBState_Unplugged;
+		
+		SystemState.button_state = kButtonState_PowerOn;
+		SystemState.button_pressed_count = kButtonDebounceCount;
+		
+		SystemState.power_state = kPowerState_ActiveDelay;
+		SystemState.power_state_count = 0;
+		
+	}
 
 	
 	// set up the ADC
