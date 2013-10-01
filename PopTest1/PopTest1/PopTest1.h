@@ -21,12 +21,16 @@
 
 
 #define kCPU_CLOCK_FREQ_KHz 8000				// System clock frequency, in kHz
-#define kTRIPLER_FREQ_HZ 1000					// desired clock rate, in Hz
+#define kTRIPLER_FREQ_HZ 2000					// desired clock rate, in Hz
 const uint8_t  kTCCR0_PRESCALE_SELECT = 3;		// timer0 prescaler divider: prescaler out is i/o clock divided by 64
 
 // have to calculate the following value outside of the compiler to get good accuracy (16-bit math limitations)
 // count = (kCPU_CLOCK_FREQ_KHz * 1000 /64)  / (2*kTRIPLER_FREQ_HZ) )-1)
-const uint8_t  kTCCR0_COUNT_VALUE = 61;		// yields a clock freq of 2049Hz, or an output frequency of 1024.5Hz
+//const uint8_t  kTCCR0_COUNT_VALUE = 61;		// yields a clock freq of 2016Hz, or an output frequency of 1008Hz
+//const uint8_t  kTCCR0_COUNT_VALUE = 30;		// yields a clock freq of 4032Hz, or an output frequency of 2016Hz
+const uint8_t  kTCCR0_COUNT_VALUE = 20 ;		// yields a clock freq of 5952Hz, or an output frequency of 2976Hz
+//const uint8_t  kTCCR0_COUNT_VALUE = 14 ;		// yields a clock freq of 8333Hz, or an output frequency of 4167Hz
+//const uint8_t  kTCCR0_COUNT_VALUE = 11 ;		// yields a clock freq of 1-417Hz, or an output frequency of 5208Hz
 
 const int16_t kFullChargeADCValue = 938;	// corresponds to 11V/4 with a 3V supply
 
