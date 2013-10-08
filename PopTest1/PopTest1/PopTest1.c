@@ -18,6 +18,7 @@ The timer 1 interrupt service routine
 Simply Toggle the output port
 ************************************/
 static volatile uint16_t icnt=0;
+static volatile uint8_t do_charge=1;
 
 ISR(TIM1_COMPA_vect)
 {
@@ -25,8 +26,8 @@ ISR(TIM1_COMPA_vect)
 	
 	icnt += 1;	// will wrap
 	
-	// Startup delay - lets voltages settle
-	if(control_state == 0) {
+	
+	if( (control_state == 0) && do_charge) {
 		control_state = 1;
 		digitalWrite(kPIN_BOOST_CTRL3, HIGH);
 	} else {
@@ -104,12 +105,15 @@ int main(void)
     {
 		if( analogRead(KPin_BoostedVSense) > kFullChargeADCValue) {
 			digitalWrite(kPIN_LED_ON_L, LOW);
+			do_charge = 0;	// for testing - limit charge voltage. COmment out to remove limiting
 		} else {
 			digitalWrite(kPIN_LED_ON_L, HIGH);
+			do_charge = 1;
 		}
 		
 		if(digitalRead(kPIN_IODATA) == LOW) {
 			digitalWrite(kPIN_LED_ON_L, HIGH);
+			do_charge = 1;
 			FireSolenoid();
 			while(digitalRead(kPIN_IODATA) == LOW) {}	// wait until button released
 		}

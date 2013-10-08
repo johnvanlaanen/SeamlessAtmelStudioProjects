@@ -32,13 +32,21 @@
 
 #define kActuatePulseWidth_mS 20
 #define kActuatePulseIntCount ( (kActuatePulseWidth_mS/2) * kBOOSTER_FREQ_HZ / 250)
+//#define kActuatePulseIntCount  240 // debug
 
 // ADC conversion threshold
 // Calculated offline in order to get the precision needed.
 // The boosted voltage is sensed through a 1:5.7 voltage divider
 // ADC value = 1024 * (BoostedV/5.7) / 3.0V
-#define kFullChargeADCValue 479		// threshold for 8.0V boosted charge threshold
 
-#define kNumTriggerFires 3
+//#define kFullChargeADCValue 299		// threshold for 5.0V boosted charge threshold
+//#define kFullChargeADCValue 359		// threshold for 6.0V boosted charge threshold
+//#define kFullChargeADCValue 419		// threshold for 7.0V boosted charge threshold
+//#define kFullChargeADCValue 449		// threshold for 7.5V boosted charge threshold
+#define kFullChargeADCValue 464		// threshold for 7.75V boosted charge threshold
+//#define kFullChargeADCValue 479		// threshold for 8.0V boosted charge threshold
+//#define kFullChargeADCValue 509		// threshold for 8.5V boosted charge threshold
+
+#define kNumTriggerFires 1
 
 #endif /* PWRMGR_TEST1_H_ */
